@@ -1,0 +1,4 @@
+./build wuserver
+./build wuclient
+./build wuproxy
+./build application
