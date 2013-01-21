@@ -6,12 +6,12 @@
 #include<sys/inotify.h>
 
 #define RECEIVE_SOCKET "tcp://localhost:5556"
-#define DISPATCH_SOCKET "tcp://*:6500"
+#define DISPATCH_SOCKET "tcp://localhost:6500"
 
-void parse_notifications(char *buff, ssize_t len);
+void parse_notifications(char *buff, ssize_t len, void* dispatch_socket);
 static char* safe_recv_from_server (void *socket, int *size);
 static int safe_send_to_proxy (void *socket, char *string, size_t len);
-int dispatch (char* update, int size);
+int dispatch (char* update, int size, void* dispatch_socket);
 
 int main (int argc, char *argv [])
 {
@@ -21,37 +21,38 @@ int main (int argc, char *argv [])
     void *subscriber = zmq_socket (context, ZMQ_PULL);
     int rc = zmq_connect (subscriber, RECEIVE_SOCKET);
     assert (rc == 0);
+    
+
+    void *dispatch_socket = zmq_socket (context, ZMQ_PUB);
+    rc = zmq_connect(dispatch_socket, DISPATCH_SOCKET);
+    assert(rc == 0);
 
     //  Subscribe to zipcode, default is NYC, 10001
     while(1)
     {
 	int size;
         char *string = safe_recv_from_server (subscriber, &size);
-        parse_notifications(string, size);
+        parse_notifications(string, size, dispatch_socket);
         free (string);
     }
 
     zmq_close (subscriber);
+    zmq_close(dispatch_socket);
     zmq_ctx_destroy (context);
     return 0;
 }
-int dispatch(char* update, int len)
+int dispatch(char* update, int len, void* dispatch_socket)
 {
 	len = 10;
-    	void *context = zmq_ctx_new ();
-	void *dispatch_socket = zmq_socket (context, ZMQ_PUB);
-	
-	int rc = zmq_bind(dispatch_socket, DISPATCH_SOCKET);
-	assert(rc == 0);
 
-	int sent_size = safe_send_to_proxy(dispatch_socket, "1234567890", len);
+        char string[10];
+	sprintf (string, "A-asd");
+	int sent_size = safe_send_to_proxy(dispatch_socket, string, len);
     	printf("dispatching Length is %d \n", sent_size);
-	zmq_close(dispatch_socket);
-	zmq_ctx_destroy(context);
 	return 0;
 
 }
-void parse_notifications(char *buff, ssize_t len)
+void parse_notifications(char *buff, ssize_t len, void* dispatch_socket)
 {
         ssize_t i = 0;
 	char action[81+FILENAME_MAX] = {0};
@@ -60,7 +61,7 @@ void parse_notifications(char *buff, ssize_t len)
         while (i < len) {
                 struct inotify_event *pevent = (struct inotify_event *)&buff[i];
 	
-		dispatch(pevent, sizeof(struct inotify_event));	
+		dispatch(pevent, sizeof(struct inotify_event), dispatch_socket);	
 
                 char action[81+FILENAME_MAX] = {0};
 

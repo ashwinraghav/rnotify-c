@@ -4,7 +4,7 @@
 #include "czmq.h"
 
 #include<sys/inotify.h>
-#define SUB_SOCK "tcp://*:6001"
+#define SUB_SOCK "tcp://localhost:6001"
 
 void print_notifications(char *buff, ssize_t len);
 static char* safe_recv_from_proxy (void *socket, int *size);
@@ -14,12 +14,13 @@ int main (void)
 	void *ctx = zmq_ctx_new ();
 	void *subscriber = zmq_socket (ctx, ZMQ_SUB);
 	zmq_connect (subscriber, SUB_SOCK);
-	zsocket_set_subscribe (subscriber, "");
+	zsocket_set_subscribe (subscriber, "A");
 
 	while(1)
 	{
 		int size;
 		char *string = safe_recv_from_proxy (subscriber, &size);
+		printf("receiving something \n");
 		print_notifications(string, size);
 		free (string);
 	}
