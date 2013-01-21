@@ -43,16 +43,16 @@ int main (int argc, char *argv [])
 }
 int dispatch(char* update, int len, void* dispatch_socket)
 {
-	len = 10;
+	//len = 10;
 
-        char string[10];
-	printf("arriving here \n");
-	sprintf (string, "A-asd\0");
-	//int sent_size = safe_send_to_proxy(dispatch_socket, string, len);
-    	if(zstr_send(dispatch_socket, string) == -1){
-		printf("The error is %s \n",zmq_strerror (errno));
-	}
-	printf("Something sent on wire \n");
+        //char string[10];
+	//printf("arriving here \n");
+	//sprintf (string, "A-asd\0");
+	int sent_size = safe_send_to_proxy(dispatch_socket, update, len);
+    	//if(zstr_send(dispatch_socket, string) == -1){
+	//	printf("The error is %s \n",zmq_strerror (errno));
+	//}
+	//printf("Something sent on wire \n");
 	//printf("dispatching Length is %d \n", sent_size);
 	return 0;
 
@@ -65,16 +65,19 @@ void parse_notifications(char *buff, ssize_t len, void* dispatch_socket)
 
         while (i < len) {
                 struct inotify_event *pevent = (struct inotify_event *)&buff[i];
-	
-		dispatch(pevent, sizeof(struct inotify_event), dispatch_socket);	
 
-                char action[81+FILENAME_MAX] = {0};
+		if (pevent->len){
+			int serial_length = sizeof(struct inotify_event) + pevent->len;
+			char *serialized_event=malloc(serial_length + 1);
 
-                if (pevent->len) 
-                strcpy (action, pevent->name);
-                else
-                strcpy (action, "some random directory");
-
+			memcpy (serialized_event, &buff[i], serial_length );
+			serialized_event[serial_length]='\0';
+			dispatch(serialized_event, serial_length, dispatch_socket);	
+			
+			strcpy (action, pevent->name);
+		}else{
+			strcpy (action, "some random directory");
+		}
                 if (pevent->mask & IN_ACCESS) 
                 strcat(action, " was read");
                 if (pevent->mask & IN_ATTRIB) 

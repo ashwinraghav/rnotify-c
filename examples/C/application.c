@@ -21,8 +21,8 @@ zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
 	while(1)
 	{
 		int size;
-		char *string = s_recv(subscriber);//safe_recv_from_proxy (subscriber, &size);
-		printf("receiving something \n");
+		char *string = safe_recv_from_proxy (subscriber, &size);
+		//printf("receiving something \n");
 		print_notifications(string, size);
 		free (string);
 	}
@@ -73,7 +73,7 @@ void print_notifications(char *buff, ssize_t len)
                 strcat(action, " was opened");
 
                 
-                printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n",pevent->wd, pevent->mask, pevent->cookie, pevent->len,  (pevent->mask & IN_ISDIR)?"yes":"no");
+                //printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n",pevent->wd, pevent->mask, pevent->cookie, pevent->len,  (pevent->mask & IN_ISDIR)?"yes":"no");
 
                 if (pevent->len) 
 			printf ("name=%s\n", pevent->name);
@@ -91,7 +91,7 @@ static char* safe_recv_from_proxy (void *socket, int *size) {
 	zmq_msg_t message;
 	zmq_msg_init (&message);
 	*size = zmq_msg_recv (&message, socket, 0);
-	printf("Method thinks the length is %d", *size);
+	//printf("Method thinks the length is %d", *size);
 	if (*size == -1)
 		return NULL;
 	char *string = malloc (*size + 1);

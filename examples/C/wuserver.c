@@ -3,6 +3,7 @@
 //  Publishes random weather updates
 
 #include "zhelpers.h"
+#include "unistd.h"
 #include <sys/inotify.h>
 #define BUFF_SIZE ((sizeof(struct inotify_event)+FILENAME_MAX)*1024)
 #define SEND_SOCK "tcp://*:5556"
@@ -53,11 +54,11 @@ int send_message_to_dispatchers (char* update, int len)
     //sprintf(wired_buff, "%s%s", pevent,"\n");
     int sent_size = safe_send(publisher, update, len);
 
-    printf("Sent Length is %d \n", sent_size);
+    //printf("Sent Length is %d \n", sent_size);
 
     zmq_close (publisher);
     zmq_ctx_destroy (context);
-    printf("sent something\n");
+    //printf("sent something\n");
     return 0;
 }
 
@@ -70,7 +71,6 @@ void get_event_at_server (int fd)
         len = read (fd, buff, BUFF_SIZE);
         send_message_to_dispatchers(buff, len);
 
-
 	while (i < len) {
 		struct inotify_event *pevent = (struct inotify_event *)&buff[i];
 		char action[81+FILENAME_MAX] = {0};
@@ -81,15 +81,15 @@ void get_event_at_server (int fd)
                 strcpy (action, "some random directory");
 
                 if (pevent->mask & IN_Q_OVERFLOW)
-                fprintf(stderr, "overflowingi*******************************");
+                fprintf(stderr, "overflowingi*******************************\n");
 
-                /*printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n",
+               /* printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n",
                         pevent->wd, pevent->mask, pevent->cookie, pevent->len, 
                         (pevent->mask & IN_ISDIR)?"yes":"no");
 
 */
 
-                //printf ("%s\n", action);
+  //              printf ("%s\n", action);
 
                 i += sizeof(struct inotify_event) + pevent->len;
 
