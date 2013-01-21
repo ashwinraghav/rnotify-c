@@ -104,13 +104,13 @@ void parse_notifications(char *buff, ssize_t len, void* dispatch_socket)
                 strcat(action, " was opened");
 
                 
-                //printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n",pevent->wd, pevent->mask, pevent->cookie, pevent->len,  (pevent->mask & IN_ISDIR)?"yes":"no");
+                printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n",pevent->wd, pevent->mask, pevent->cookie, pevent->len,  (pevent->mask & IN_ISDIR)?"yes":"no");
 
-                //if (pevent->len) 
-		//	printf ("name=%s\n", pevent->name);
+                if (pevent->len) 
+			printf ("name=%s\n", pevent->name);
                 
 
-                //printf ("%s\n", action);
+                printf ("%s\n", action);
 
                 i += sizeof(struct inotify_event) + pevent->len;
 

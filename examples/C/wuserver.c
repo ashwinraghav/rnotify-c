@@ -8,8 +8,8 @@
 #define BUFF_SIZE ((sizeof(struct inotify_event)+FILENAME_MAX)*1024)
 #define SEND_SOCK "tcp://*:5556"
 
-void get_event_at_server (int fd);
-int send_message_to_dispatchers (char* update, int size);
+void get_event_at_server (int fd, void* publisher);
+int send_message_to_dispatchers (char* update, int size, void* publisher);
 void handle_error (int error);
 static int safe_send (void *socket, char *string, size_t len);
 
@@ -18,6 +18,9 @@ int main ()
         int result;
         int fd;
         int wd;   /* watch descriptor */
+	void *context = zmq_ctx_new ();
+	void *publisher = zmq_socket (context, ZMQ_PUSH);
+	zmq_bind (publisher, SEND_SOCK);
 
 
         fd = inotify_init();
@@ -36,40 +39,32 @@ int main ()
         }
 
         while (1) {
-                get_event_at_server(fd);
+                get_event_at_server(fd, publisher);
         }
+	zmq_close (publisher);
+	zmq_ctx_destroy (context);
 
         return 0;
 }
 
-int send_message_to_dispatchers (char* update, int len)
+int send_message_to_dispatchers (char* update, int len, void* publisher)
 {
-    //  Prepare our context and publisher
-    //struct inotify_event *pevent = (struct inotify_event *)&update[0];
-    void *context = zmq_ctx_new ();
-    void *publisher = zmq_socket (context, ZMQ_PUSH);
-    zmq_bind (publisher, SEND_SOCK);
-
-    //char wired_buff[BUFF_SIZE] = {0};
-    //sprintf(wired_buff, "%s%s", pevent,"\n");
     int sent_size = safe_send(publisher, update, len);
 
     //printf("Sent Length is %d \n", sent_size);
 
-    zmq_close (publisher);
-    zmq_ctx_destroy (context);
     //printf("sent something\n");
     return 0;
 }
 
-void get_event_at_server (int fd)
+void get_event_at_server (int fd, void* publisher)
 {
         ssize_t len, i = 0;
         char action[81+FILENAME_MAX] = {0};
         char buff[BUFF_SIZE] = {0};
 
         len = read (fd, buff, BUFF_SIZE);
-        send_message_to_dispatchers(buff, len);
+        send_message_to_dispatchers(buff, len, publisher);
 
 	while (i < len) {
 		struct inotify_event *pevent = (struct inotify_event *)&buff[i];
