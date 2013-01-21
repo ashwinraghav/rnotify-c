@@ -14,12 +14,14 @@ int main (void)
 	void *ctx = zmq_ctx_new ();
 	void *subscriber = zmq_socket (ctx, ZMQ_SUB);
 	zmq_connect (subscriber, SUB_SOCK);
-	zsocket_set_subscribe (subscriber, "A");
+	char* filter="";
+zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
+	//zsocket_set_subscribe (subscriber, "A");
 
 	while(1)
 	{
 		int size;
-		char *string = safe_recv_from_proxy (subscriber, &size);
+		char *string = s_recv(subscriber);//safe_recv_from_proxy (subscriber, &size);
 		printf("receiving something \n");
 		print_notifications(string, size);
 		free (string);

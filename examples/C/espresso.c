@@ -71,12 +71,13 @@ int main (void)
     //  Start child threads
     zctx_t *ctx = zctx_new ();
     zthread_fork (ctx, publisher_thread, NULL);
-    zthread_fork (ctx, subscriber_thread, NULL);
+    //zthread_fork (ctx, subscriber_thread, NULL);
 
     void *subscriber = zsocket_new (ctx, ZMQ_XSUB);
     zsocket_connect (subscriber, "tcp://localhost:6000");
     void *publisher = zsocket_new (ctx, ZMQ_XPUB);
     zsocket_bind (publisher, "tcp://*:6001");
+    
     void *listener = zthread_fork (ctx, listener_thread, NULL);
     zmq_proxy (subscriber, publisher, listener);
 

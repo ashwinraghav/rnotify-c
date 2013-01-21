@@ -46,9 +46,14 @@ int dispatch(char* update, int len, void* dispatch_socket)
 	len = 10;
 
         char string[10];
-	sprintf (string, "A-asd");
-	int sent_size = safe_send_to_proxy(dispatch_socket, string, len);
-    	printf("dispatching Length is %d \n", sent_size);
+	printf("arriving here \n");
+	sprintf (string, "A-asd\0");
+	//int sent_size = safe_send_to_proxy(dispatch_socket, string, len);
+    	if(zstr_send(dispatch_socket, string) == -1){
+		printf("The error is %s \n",zmq_strerror (errno));
+	}
+	printf("Something sent on wire \n");
+	//printf("dispatching Length is %d \n", sent_size);
 	return 0;
 
 }

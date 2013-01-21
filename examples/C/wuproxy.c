@@ -2,13 +2,12 @@
 
 #include "zhelpers.h"
 #include "czmq.h"
-#define BACKEND "tcp://*:6500"
+#define BACKEND "tcp://localhost:6500"
 #define FRONTEND "tcp://*:6001"
 
 
 static void listener_thread (void *args, zctx_t *ctx, void *pipe);
 
-static void publisher_thread (void *args, zctx_t *ctx, void *pipe);
 
 static void listener_thread (void *args, zctx_t *ctx, void *pipe)
 {
@@ -25,24 +24,35 @@ static void listener_thread (void *args, zctx_t *ctx, void *pipe)
 int main (void)
 {
 	zctx_t *ctx = zctx_new ();
-	printf("Proxy starting to work\n");
-	
-  	void *frontend = zsocket_new (ctx, ZMQ_XSUB);
-	int rc = zsocket_bind(frontend, FRONTEND);
+	//zthread_fork (ctx, publisher_thread, NULL);
 
-	if(rc == 0){
-	printf("The error is %s \n",zmq_strerror (errno));
+	void *subscriber = zsocket_new (ctx, ZMQ_XSUB);
+	zsocket_bind (subscriber, "tcp://*:6500");
+	void *publisher = zsocket_new (ctx, ZMQ_XPUB);
+	zsocket_bind (publisher, "tcp://*:6001");
+
+	void *listener = zthread_fork (ctx, listener_thread, NULL);
+	zmq_proxy (subscriber, publisher, listener);
+
+	puts (" interrupted");
+	//  Tell attached threads to exit
+	zctx_destroy (&ctx);
+	/*zctx_t *ctx = zctx_new ();
+	  printf("Proxy starting to work\n");
+
+	  void *frontend = zsocket_new (ctx, ZMQ_XSUB);
+	  int rc = zsocket_bind(frontend, FRONTEND);
+
+	  if(rc != 0){
+		printf("1. The error is %s \n",strerror (errno));
 	}
 
 	void *backend = zsocket_new (ctx, ZMQ_XPUB);
-	rc = zsocket_bind(backend, BACKEND);
-	if(rc == 0){
-	printf("The error is %s \n",zmq_strerror (errno));
-	}
+	rc = zsocket_connect(backend, BACKEND);
 
 	void *listener = zthread_fork (ctx, listener_thread, NULL);
-	zmq_proxy (frontend, backend, listener);
-	
+	rc = zmq_proxy (frontend, backend, listener);
+	*/
 	//  Switch messages between sockets
 	/*while (1) {
 		zmq_msg_t message;
@@ -84,8 +94,7 @@ int main (void)
 	//  Run the proxy until the user interrupts us
 	//zmq_proxy (frontend, backend, NULL);
 
-	zmq_close (frontend);
-	zmq_close (backend);
-	zmq_ctx_destroy (ctx);
+	//zmq_close (frontend);
+	//zmq_close (backend);
 	return 0;
 }
