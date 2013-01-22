@@ -6,8 +6,8 @@
 #include "czmq.h"
 #include<sys/inotify.h>
 
-#define RECEIVE_SOCKET "ipc:///tmp/com"
-//#define RECEIVE_SOCKET "tcp://localhost:5556"
+//#define RECEIVE_SOCKET "ipc:///tmp/com"
+#define RECEIVE_SOCKET "tcp://localhost:5556"
 #define DISPATCH_SOCKET "tcp://ztay.cs.virginia.edu:6500"
 #define WORKER_SOCKET "inproc://#1"
 
@@ -35,7 +35,7 @@ int main (int argc, char *argv [])
 	rc = zsocket_bind(worker, WORKER_SOCKET);	
 	assert(rc == 0);
 	int nthreads = 0;
-	for (nthreads=0;nthreads < 30; nthreads++)
+	for (nthreads=0;nthreads < 50; nthreads++)
 	{
 		zthread_fork(context, parser_thread, NULL);
 	}
