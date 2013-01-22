@@ -16,7 +16,7 @@ static void listener_thread (void *args, zctx_t *ctx, void *pipe)
 		zframe_t *frame = zframe_recv (pipe);
 		if (!frame)
 			break;              //  Interrupted
-		//zframe_print (frame, NULL);
+		zframe_print (frame, NULL);
 		zframe_destroy (&frame);
 	}
 }
