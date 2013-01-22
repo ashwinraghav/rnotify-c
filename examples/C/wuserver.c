@@ -7,7 +7,8 @@
 #include "unistd.h"
 #include <sys/inotify.h>
 #define BUFF_SIZE ((sizeof(struct inotify_event)+FILENAME_MAX)*1024)
-#define SEND_SOCK "tcp://*:5556"
+//#define SEND_SOCK "tcp://*:5556"
+#define SEND_SOCK "ipc:///tmp/com"
 
 void get_event_at_server (int fd, void* publisher);
 int send_message_to_dispatchers (char* update, int size, void* publisher);
@@ -53,7 +54,7 @@ int send_message_to_dispatchers (char* update, int len, void* publisher)
 {
     int sent_size = safe_send(publisher, update, len);
 
-    //printf("Sent Length is %d \n", sent_size);
+    printf("Sent Length is %d \n", sent_size);
 
     //printf("sent something\n");
     return 0;

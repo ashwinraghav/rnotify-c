@@ -4,7 +4,7 @@
 #include "czmq.h"
 
 #include<sys/inotify.h>
-#define SUB_SOCK "tcp://localhost:6001"
+#define SUB_SOCK "tcp://ztay.cs.virginia.edu:6001"
 
 void print_notifications(char *buff, ssize_t len);
 static char* safe_recv_from_proxy (void *socket, int *size);
