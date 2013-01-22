@@ -1,0 +1,6 @@
+./wuserver &
+./wuproxy &
+for (( i = 0; i <= 3; i++ ))      ### Outer for loop ###
+do
+        ./wuclient &
+done

@@ -78,11 +78,7 @@ void get_event_at_server (int fd, void* publisher)
                 if (pevent->mask & IN_Q_OVERFLOW)
                 fprintf(stderr, "overflowingi*******************************\n");
 
-               /* printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n",
-                        pevent->wd, pevent->mask, pevent->cookie, pevent->len, 
-                        (pevent->mask & IN_ISDIR)?"yes":"no");
-
-*/
+               // printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n", pevent->wd, pevent->mask, pevent->cookie, pevent->len, (pevent->mask & IN_ISDIR)?"yes":"no");
 
   //              printf ("%s\n", action);
 

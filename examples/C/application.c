@@ -13,10 +13,10 @@ int main (void)
 {
 	void *ctx = zmq_ctx_new ();
 	void *subscriber = zmq_socket (ctx, ZMQ_SUB);
+	zsocket_set_hwm(subscriber, 100000); 	
 	zmq_connect (subscriber, SUB_SOCK);
 	char* filter="";
-zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
-	//zsocket_set_subscribe (subscriber, "A");
+	zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
 
 	while(1)
 	{
@@ -79,7 +79,7 @@ void print_notifications(char *buff, ssize_t len)
 			printf ("name=%s\n", pevent->name);
                 
 
-                printf ("%s\n", action);
+                //printf ("%s\n", action);
 
                 i += sizeof(struct inotify_event) + pevent->len;
 
