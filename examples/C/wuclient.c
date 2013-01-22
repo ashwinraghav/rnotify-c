@@ -3,6 +3,7 @@
 //  Collects weather updates and finds avg temp in zipcode
 
 #include "zhelpers.h"
+#include "czmq.h"
 #include<sys/inotify.h>
 
 #define RECEIVE_SOCKET "tcp://localhost:5556"
@@ -12,11 +13,10 @@ void parse_notifications(char *buff, ssize_t len, void* dispatch_socket);
 static char* safe_recv_from_server (void *socket, int *size);
 static int safe_send_to_proxy (void *socket, char *string, size_t len);
 int dispatch (char* update, int size, void* dispatch_socket);
-void output_notifications(struct inotify_event *pevent, char * action);
 
 int main (int argc, char *argv [])
 {
-	//  Socket to talk to server
+    //  Socket to talk to server
 	printf ("Collecting updates from weather server...\n");
 	void *context = zmq_ctx_new ();
 	void *subscriber = zmq_socket (context, ZMQ_PULL);
@@ -26,10 +26,10 @@ int main (int argc, char *argv [])
 
 
 	void *dispatch_socket = zmq_socket (context, ZMQ_PUB);
-	zsocket_set_hwm(dispatch_socket, 100000); 	
 	rc = zmq_connect(dispatch_socket, DISPATCH_SOCKET);
 	assert(rc == 0);
 
+	//  Subscribe to zipcode, default is NYC, 10001
 	while(1)
 	{
 		int size;
@@ -63,77 +63,58 @@ void parse_notifications(char *buff, ssize_t len, void* dispatch_socket)
 {
 	ssize_t i = 0;
 	char action[81+FILENAME_MAX] = {0};
-	int wd = -1;
-	int start_position = i;
+
 
 	while (i < len) {
 		struct inotify_event *pevent = (struct inotify_event *)&buff[i];
 
 		if (pevent->len){
-			if((wd == -1) || (wd != pevent->wd)){
-				if(wd != -1)
-				{
-					printf("dispatching\n");
-					int serial_length = i - start_position;
-					dispatch(&buff[start_position], serial_length, dispatch_socket);
-					//dispatch(&buff[i], serial_length, dispatch_socket);
-					//sizeof(struct inotify_event) + pevent->len;
-				}
-				wd = pevent->wd;
-				start_position = i;
-			}
-
+			int serial_length = sizeof(struct inotify_event) + pevent->len;
+			dispatch(&buff[i], serial_length, dispatch_socket);
+			strcpy (action, pevent->name);
+		}else{
+			strcpy (action, "some random directory");
 		}
+		if (pevent->mask & IN_ACCESS) 
+			strcat(action, " was read");
+		if (pevent->mask & IN_ATTRIB) 
+			strcat(action, " Metadata changed");
+		if (pevent->mask & IN_CLOSE_WRITE) 
+			strcat(action, " opened for writing was closed");
+		if (pevent->mask & IN_CLOSE_NOWRITE) 
+			strcat(action, " not opened for writing was closed");
+		if (pevent->mask & IN_CREATE) 
+			strcat(action, " created in watched directory");
+		if (pevent->mask & IN_DELETE) 
+			strcat(action, " deleted from watched directory");
+		if (pevent->mask & IN_DELETE_SELF) 
+			strcat(action, "Watched file/directory was itself deleted");
+		if (pevent->mask & IN_MODIFY) 
+			strcat(action, " was modified");
+		if (pevent->mask & IN_MOVE_SELF) 
+			strcat(action, "Watched file/directory was itself moved");
+		if (pevent->mask & IN_MOVED_FROM) 
+			strcat(action, " moved out of watched directory");
+		if (pevent->mask & IN_MOVED_TO) 
+			strcat(action, " moved into watched directory");
+		if (pevent->mask & IN_OPEN) 
+			strcat(action, " was opened");
+
+
+		//printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n",pevent->wd, pevent->mask, pevent->cookie, pevent->len,  (pevent->mask & IN_ISDIR)?"yes":"no");
+
+		if (pevent->len) 
+			printf ("name=%s\n", pevent->name);
+
+
+		//printf ("%s\n", action);
+
 		i += sizeof(struct inotify_event) + pevent->len;
-		output_notifications(pevent,action);
 
-	}
-	if(i != start_position){
-		printf("dispatching\n");
-		int serial_length = i - start_position;
-		dispatch(&buff[start_position], serial_length, dispatch_socket);
 	}
 
 }
 
-void output_notifications(struct inotify_event *pevent, char * action)
-{
-	if(pevent->len)
-	{
-		strcpy (action, pevent->name);
-	}
-	if (pevent->mask & IN_ACCESS) 
-		strcat(action, " was read");
-	if (pevent->mask & IN_ATTRIB) 
-		strcat(action, " Metadata changed");
-	if (pevent->mask & IN_CLOSE_WRITE) 
-		strcat(action, " opened for writing was closed");
-	if (pevent->mask & IN_CLOSE_NOWRITE) 
-		strcat(action, " not opened for writing was closed");
-	if (pevent->mask & IN_CREATE) 
-		strcat(action, " created in watched directory");
-	if (pevent->mask & IN_DELETE) 
-		strcat(action, " deleted from watched directory");
-	if (pevent->mask & IN_DELETE_SELF) 
-		strcat(action, "Watched file/directory was itself deleted");
-	if (pevent->mask & IN_MODIFY) 
-		strcat(action, " was modified");
-	if (pevent->mask & IN_MOVE_SELF) 
-		strcat(action, "Watched file/directory was itself moved");
-	if (pevent->mask & IN_MOVED_FROM) 
-		strcat(action, " moved out of watched directory");
-	if (pevent->mask & IN_MOVED_TO) 
-		strcat(action, " moved into watched directory");
-	if (pevent->mask & IN_OPEN) 
-		strcat(action, " was opened");
-	printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n",pevent->wd, pevent->mask, pevent->cookie, pevent->len,  (pevent->mask & IN_ISDIR)?"yes":"no");
-
-	if (pevent->len) 
-		printf ("name=%s\n", pevent->name);
-
-
-	printf ("%s\n", action);
-}
 static char* safe_recv_from_server (void *socket, int *size) {
 	zmq_msg_t message;
 	zmq_msg_init (&message);
@@ -156,8 +137,3 @@ static int safe_send_to_proxy(void *socket, char *string, size_t len) {
 	zmq_msg_close (&message);
 	return (rc);
 }
-//char *serialized_event=malloc(serial_length + 1);
-
-//memcpy (serialized_event, &buff[i], serial_length );
-//serialized_event[serial_length]='\0';
-//dispatch(serialized_event, serial_length, dispatch_socket);	

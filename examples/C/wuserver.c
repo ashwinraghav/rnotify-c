@@ -3,6 +3,7 @@
 //  Publishes random weather updates
 
 #include "zhelpers.h"
+#include "czmq.h"
 #include "unistd.h"
 #include <sys/inotify.h>
 #define BUFF_SIZE ((sizeof(struct inotify_event)+FILENAME_MAX)*1024)
@@ -20,6 +21,7 @@ int main ()
         int wd;   /* watch descriptor */
 	void *context = zmq_ctx_new ();
 	void *publisher = zmq_socket (context, ZMQ_PUSH);
+	zsocket_set_hwm(publisher, 100000); 	
 	zmq_bind (publisher, SEND_SOCK);
 
 
