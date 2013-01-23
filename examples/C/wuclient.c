@@ -7,8 +7,8 @@
 #include<sys/inotify.h>
 
 //#define RECEIVE_SOCKET "ipc:///tmp/com"
-#define RECEIVE_SOCKET "tcp://ztay.cs.virginia.edu:5556"
-#define DISPATCH_SOCKET "tcp://ztay.cs.virginia.edu:6500"
+#define RECEIVE_SOCKET "tcp://localhost:5556"
+#define DISPATCH_SOCKET "tcp://localhost:6500"
 #define WORKER_SOCKET "inproc://#1"
 
 void parse_notifications(char *buff, ssize_t len, void* dispatch_socket);
