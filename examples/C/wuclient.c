@@ -15,13 +15,13 @@ void parse_notifications(char *buff, ssize_t len, void* dispatch_socket);
 static char* safe_recv_from_server (void *socket, int *size);
 static int safe_send_to_proxy (void *socket, char *string, size_t len);
 int dispatch (char* update, int size, void* dispatch_socket);
-static void parser_thread(void *args, void* context, void *pipe);
+static void parser_thread(void *args, zctx_t* context, void *pipe);
 
 int main (int argc, char *argv [])
 {
     //  Socket to talk to server
 	printf ("Collecting updates from weather server...\n");
-	void *context = zctx_new ();
+        zctx_t *context = zctx_new ();
 
 	void *subscriber = zsocket_new (context, ZMQ_PULL);
 	zsocket_set_hwm(subscriber, 100000); 	
@@ -35,7 +35,7 @@ int main (int argc, char *argv [])
 	rc = zsocket_bind(worker, WORKER_SOCKET);	
 	assert(rc == 0);
 	int nthreads = 0;
-	for (nthreads=0;nthreads < 50; nthreads++)
+	for (nthreads=0; nthreads < 50; nthreads++)
 	{
 		zthread_fork(context, parser_thread, NULL);
 	}
@@ -48,8 +48,8 @@ int main (int argc, char *argv [])
 		parse_notifications(string, size,  worker);
 		free (string);
 	}
-
-	zctx_destroy (context);
+printf("Ending \n");
+	zctx_destroy (&context);
 	return 0;
 }
 int dispatch(char* update, int len, void* dispatch_socket)
@@ -69,8 +69,9 @@ int dispatch(char* update, int len, void* dispatch_socket)
 
 }
 
-static void parser_thread(void *args, void* context, void *pipe){
+static void parser_thread(void *args, zctx_t* context, void *pipe){
 	void *dispatch_socket = zsocket_new (context, ZMQ_PUB);
+	zsocket_set_hwm(dispatch_socket, 10000); 	
 	int rc = zsocket_connect(dispatch_socket, DISPATCH_SOCKET);
 	assert(rc == 0);
 	

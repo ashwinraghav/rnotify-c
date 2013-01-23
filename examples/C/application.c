@@ -4,18 +4,19 @@
 #include "czmq.h"
 
 #include<sys/inotify.h>
-#define SUB_SOCK "tcp://ztay.cs.virginia.edu:6001"
+#define SUB_SOCK "tcp://localhost:6001"
 
-void print_notifications(char *buff, ssize_t len);
+void print_notifications(char *buff, ssize_t len, int *count);
 static char* safe_recv_from_proxy (void *socket, int *size);
 
 int main (void)
 {
-	void *ctx = zmq_ctx_new ();
-	void *subscriber = zmq_socket (ctx, ZMQ_SUB);
+	zctx_t *ctx = zctx_new ();
+	void *subscriber = zsocket_new (ctx, ZMQ_SUB);
 	zsocket_set_hwm(subscriber, 100000); 	
-	zmq_connect (subscriber, SUB_SOCK);
+	zsocket_connect (subscriber, SUB_SOCK);
 	char* filter="";
+	int count = 0;
 	zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
 
 	while(1)
@@ -23,14 +24,14 @@ int main (void)
 		int size;
 		char *string = safe_recv_from_proxy (subscriber, &size);
 		//printf("receiving something \n");
-		print_notifications(string, size);
+		print_notifications(string, size, &count);
 		free (string);
 	}
-	zmq_close (subscriber);
-	zmq_ctx_destroy (ctx);
+	//zmq_close (subscriber);
+	zctx_destroy (&ctx);
 	return 0;
 }
-void print_notifications(char *buff, ssize_t len)
+void print_notifications(char *buff, ssize_t len, int* count)
 {
 	ssize_t i = 0;
 	char action[81+FILENAME_MAX] = {0};
@@ -75,12 +76,13 @@ void print_notifications(char *buff, ssize_t len)
                 
                 //printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n",pevent->wd, pevent->mask, pevent->cookie, pevent->len,  (pevent->mask & IN_ISDIR)?"yes":"no");
 
-                if (pevent->len) 
-			printf ("name=%s\n", pevent->name);
+                //if (pevent->len) 
+		//	printf ("name=%s\n", pevent->name);
                 
 
                 //printf ("%s\n", action);
-
+		*count = *count + 1;
+		printf("Count = %d \n", *count);
                 i += sizeof(struct inotify_event) + pevent->len;
 
         }

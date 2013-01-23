@@ -6,7 +6,7 @@
 #include "czmq.h"
 #include "unistd.h"
 #include <sys/inotify.h>
-#define BUFF_SIZE ((sizeof(struct inotify_event)+FILENAME_MAX)*1024)
+#define BUFF_SIZE ((sizeof(struct inotify_event)+FILENAME_MAX)*2000)
 #define SEND_SOCK "tcp://*:5556"
 //#define SEND_SOCK "ipc:///tmp/com"
 
@@ -69,7 +69,7 @@ void get_event_at_server (int fd, void* publisher)
         len = read (fd, buff, BUFF_SIZE);
         send_message_to_dispatchers(buff, len, publisher);
 
-	while (i < len) {
+/*	while (i < len) {
 		struct inotify_event *pevent = (struct inotify_event *)&buff[i];
 		char action[81+FILENAME_MAX] = {0};
 
@@ -88,7 +88,7 @@ void get_event_at_server (int fd, void* publisher)
                 i += sizeof(struct inotify_event) + pevent->len;
 
 	}
-
+*/
 }
 
 void handle_error (int error)
