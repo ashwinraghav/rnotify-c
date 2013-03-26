@@ -19,7 +19,7 @@ int main (void)
 	int count = 0;
 	zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
 
-	while(true)
+	while(1)
 	{
 		int size;
 		char *string = safe_recv(subscriber, &size);

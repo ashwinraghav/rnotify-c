@@ -30,10 +30,10 @@
 
 //error checking macro
 #define CHECK(x) do { \
-  int retval = (x); \
-  if (retval < 0) { \
-    fprintf(stderr, "Runtime error: %s returned %s at %s:%d", #x, strerror(errno), __FILE__, __LINE__); \
-  } \
+	int retval = (x); \
+	if (retval < 0) { \
+		fprintf(stderr, "Runtime error: %s returned %s at %s:%d", #x, strerror(errno), __FILE__, __LINE__); \
+	} \
 } while (0)
 
 //  Version checking, and patch up missing constants to match 2.1
@@ -80,8 +80,8 @@ s_sendmore (void *socket, char *string) {
 
 //  Receives all message parts from socket, prints neatly
 //
-	static void
-s_dump (void *socket)
+
+static void s_dump (void *socket)
 {
 	puts ("----------------------------------------");
 	while (1) {
@@ -182,11 +182,11 @@ s_console (const char *format, ...)
 
 
 static int safe_send(void *socket, char *string, size_t len) {
+	int rc;
 	zmq_msg_t message;
 	zmq_msg_init_size (&message, len);
 	memcpy (zmq_msg_data (&message), string, len);
-	int rc = zmq_msg_send (&message, socket, 0);
-	assert(rc != -1);
+	CHECK(rc = zmq_msg_send (&message, socket, 0));
 	zmq_msg_close (&message);
 	return (rc);
 }
@@ -250,7 +250,7 @@ static void print_notifications(struct inotify_event *pevent)
 
 void print_error (int error)
 {
-        fprintf (stderr, "Error: %s\n", strerror(error));
+	fprintf (stderr, "Error: %s\n", strerror(error));
 
 }
 

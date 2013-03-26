@@ -26,7 +26,6 @@ int main (void)
 {
 	zctx_t *ctx = zctx_new ();
 	int io_threads = 4;
-	//zmq_ctx_set (ctx, ZMQ_IO_THREADS, io_threads);
 	zctx_set_iothreads (ctx,  io_threads);	
 	
 	void *subscriber = create_socket(ctx, ZMQ_XSUB, SOCK_BIND, BACKEND);

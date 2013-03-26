@@ -31,7 +31,7 @@ int main (int argc, char *argv [])
 	{
 		int size;
 		char *string = safe_recv(subscriber, &size);
-		parse_notifications(string, size,  worker);
+		safe_send(worker, string, size);
 		free (string);
 	}
 	zctx_destroy (&ctx);
@@ -76,13 +76,3 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 		free (buff);
 	}
 }
-
-void parse_notifications(char *buff, ssize_t len, void* worker)
-{	
-	zmq_msg_t message;
-	zmq_msg_init_size (&message, len);
-	memcpy (zmq_msg_data (&message), buff, len);
-	CHECK(zmq_msg_send (&message, worker, 0));
-	zmq_msg_close (&message);
-}
-
