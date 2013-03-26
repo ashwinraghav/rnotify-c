@@ -182,25 +182,23 @@ s_console (const char *format, ...)
 
 
 static int safe_send(void *socket, char *string, size_t len) {
-	int rc;
-	zmq_msg_t message;
-	zmq_msg_init_size (&message, len);
-	memcpy (zmq_msg_data (&message), string, len);
-	CHECK(rc = zmq_msg_send (&message, socket, 0));
-	zmq_msg_close (&message);
-	return (rc);
+	int rc; zmsg_t *msg ; zframe_t *frame;;
+	assert (msg = zmsg_new());
+	assert(frame = zframe_new (string, len));
+	zmsg_push (msg, frame);
+	assert(zmsg_size (msg) == 1); assert (zmsg_content_size (msg) == len);
+	assert(zmsg_send (&msg, socket) == 0); assert (msg == NULL);
+	return (len);
 }
 
 static char* safe_recv(void *socket, int *size) {
-	zmq_msg_t message;
-	zmq_msg_init (&message);
-	*size = zmq_msg_recv (&message, socket, 0);
-	if (*size == -1)
-		return NULL;
-	char *string = malloc (*size + 1);
-	memcpy (string, zmq_msg_data (&message), *size);
-	zmq_msg_close (&message);
-	string [*size] = 0;
+	int rc; zmsg_t *msg ; zframe_t *frame;
+	assert(msg = zmsg_recv (socket));
+	frame = zmsg_pop(msg);
+	char *string = zframe_strdup (frame);
+	*size = zframe_size(frame);
+	zframe_destroy(&frame);
+	zmsg_destroy (&msg);
 	return (string);
 }
 
