@@ -180,6 +180,35 @@ s_console (const char *format, ...)
 
 #endif  //  __ZHELPERS_H_INCLUDED__
 
+static void two_part_publish(void *socket, char* string){
+	struct inotify_event *pevent = (struct inotify_event *)string;
+	int serial_length = sizeof(struct inotify_event) + pevent->len;
+	
+	if (pevent->len)
+	{
+		zmsg_t *msg = zmsg_recv (socket);
+		zframe_t *content, *path_filter = zframe_new(pevent->name, strlen(pevent->name));
+		assert(content = zframe_new (string, serial_length));
+
+		zframe_send (&path_filter, socket, ZFRAME_REUSE + ZFRAME_MORE);
+		zframe_send (&content, socket, 0);
+	}
+}
+
+static char* two_part_receive(void *socket, int *size){
+	zmsg_t *msg = zmsg_recv (socket);
+        zframe_t *path_filter = zmsg_pop (msg);
+        zframe_t *content = zmsg_pop (msg);
+        assert (content);
+	char *string1 = zframe_strdup (path_filter);
+	printf("%s is the filter", string1);
+	char *string = zframe_strdup (content);
+	*size = zframe_size(content);
+	zframe_destroy(&path_filter);
+	zframe_destroy(&content);
+        zmsg_destroy (&msg);
+	return(string);
+}
 
 static int safe_send(void *socket, char *string, size_t len) {
 	int rc; zmsg_t *msg ; zframe_t *frame;;
@@ -242,8 +271,6 @@ static void print_notifications(struct inotify_event *pevent)
 
 	if (pevent->len) 
 		printf ("name=%s\n", pevent->name);
-
-
 }
 
 void print_error (int error)
@@ -262,4 +289,13 @@ void* create_socket(zctx_t *ctx, int type, int mode, char* address)
 		zsocket_connect(sock, address);
 
 	return sock;
+}
+
+char* register_notification(int fd, char* file_name){
+	int wd;
+	char *str = malloc(10);
+	CHECK(wd = inotify_add_watch (fd, file_name, IN_ALL_EVENTS)); 
+	printf("\n added watch for %s", file_name);
+	sprintf(str, "%d", wd);
+	return str;
 }

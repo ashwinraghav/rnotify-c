@@ -6,13 +6,31 @@
 
 #ifdef PRODUCTION
 	#define SEND_SOCK "tcp://*:5556"
+	#define SUB_RECV_SOCK "tcp://*:5558"
 #else	
 	#define SEND_SOCK "ipc:///tmp/5556"
+	#define SUB_RECV_SOCK "ipc:///tmp/5558"
 #endif
 
 void flush_notifications(int fd, void* publisher);
 void handle_error (int error);
 void flush (char* update, int len, void* publisher);
+
+static void subscription_receiver(void* args, zctx_t* ctx, void *pipe){
+	void *sub_recv_socket = create_socket(ctx, ZMQ_REP, SOCK_BIND, SUB_RECV_SOCK);
+	int wd, size, *fd = (int*) args;
+	printf("\nStarting thread");
+	while(true){
+		char *file_name = safe_recv(sub_recv_socket, &size);
+
+		char *registration_id = register_notification(*fd, file_name);
+		
+		safe_send(sub_recv_socket, registration_id, size);
+		free(registration_id);
+		free(file_name);
+	}
+	
+}
 
 int main ()
 {
@@ -20,12 +38,11 @@ int main ()
 	zctx_t *ctx = zctx_new ();
 	assert(ctx);
 	void *publisher = create_socket(ctx, ZMQ_PUSH, SOCK_BIND, SEND_SOCK);
-
+	
+	
 	CHECK(fd = inotify_init()); 
-	CHECK(inotify_add_watch (fd, "/localtmp/dump/1", IN_ALL_EVENTS));
-	CHECK(inotify_add_watch (fd, "/localtmp/dump/2", IN_ALL_EVENTS));
-	CHECK(inotify_add_watch (fd, "/localtmp/dump/3", IN_ALL_EVENTS));
-	CHECK(wd = inotify_add_watch (fd, "/localtmp/dump/4", IN_ALL_EVENTS));
+	zthread_fork(ctx, subscription_receiver, (void*)(&fd));
+	//subscription_receiver(ctx, (void*)(&fd));
 
 	while (1)
 	{

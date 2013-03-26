@@ -1,6 +1,4 @@
-#include "zhelpers.h"
-#include "czmq.h"
-#include<sys/inotify.h>
+#include "rnot.h"
 
 #ifdef PRODUCTION
 	#define SUB_SOCK "tcp://localhost:6001"
@@ -11,22 +9,8 @@
 void parse_notifications(char *buff, ssize_t len, int *count);
 
 int main (void)
-{
-	zctx_t *ctx = zctx_new ();
-	
-	void *subscriber = create_socket(ctx, ZMQ_SUB, SOCK_CONNECT, SUB_SOCK);
-	char* filter="";
-	int count = 0;
-	zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
-
-	while(1)
-	{
-		int size;
-		char *string = safe_recv(subscriber, &size);
-		parse_notifications(string, size, &count);
-		free (string);
-	}
-	zctx_destroy (&ctx);
+{	
+	rsubscribe("/localtmp/dump/1");
 	return 0;
 }
 void parse_notifications(char *buff, ssize_t len, int* count)

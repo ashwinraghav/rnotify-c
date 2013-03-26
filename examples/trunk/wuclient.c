@@ -66,9 +66,11 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 		while (i < size) {
 			struct inotify_event *pevent = (struct inotify_event *)&buff[i];
 
-			if (pevent->len){
+			if (pevent->len)
+			{
 				int serial_length = sizeof(struct inotify_event) + pevent->len;
-				dispatch(&buff[i], serial_length, dispatch_socket);
+				two_part_publish(dispatch_socket, &buff[i]);
+				//dispatch(&buff[i], serial_length, dispatch_socket);
 			}
 			print_notifications(pevent);
 			i += sizeof(struct inotify_event) + pevent->len;
