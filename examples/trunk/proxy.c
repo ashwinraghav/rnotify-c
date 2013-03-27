@@ -12,7 +12,7 @@
 	#define SUB_RECV_SOCK "ipc:///tmp/5558"
 #endif
 
-void flush_notifications(int fd, void* publisher);
+void start_proxy(int fd, void* publisher);
 void handle_error (int error);
 void flush (char* update, int len, void* publisher);
 
@@ -43,10 +43,7 @@ int main ()
 	CHECK(fd = inotify_init()); 
 	zthread_fork(ctx, subscription_receiver, (void*)(&fd));
 
-	while (1)
-	{
-		flush_notifications(fd, publisher);
-	}
+	start_proxy(fd, publisher);
 
 	zctx_destroy (&ctx);
 	return 0;
@@ -58,14 +55,15 @@ void flush (char* update, int len, void* publisher)
 	printf("Sent Length is %d \n", sent_size);
 }
 
-void flush_notifications(int fd, void* publisher)
+void start_proxy(int fd, void* publisher)
 {
-	ssize_t len;
-	char action[81+FILENAME_MAX] = {0};
-	char buff[BUFF_SIZE] = {0};
-
-	len = read (fd, buff, BUFF_SIZE);
-	flush(buff, len, publisher);
+	char *buff = malloc(BUFF_SIZE);
+	while(1){
+		ssize_t len;
+		len = read (fd, buff, BUFF_SIZE);
+		flush(buff, len, publisher);
+	}
+	free(buff);
 }
 
 
