@@ -6,23 +6,15 @@
 	#define SUB_SOCK "ipc:///tmp/6001"
 #endif
 
-void parse_notifications(char *buff, ssize_t len, int *count);
-
 int main (void)
 {	
-	rsubscribe("/localtmp/dump/1");
+	rnot *rn = rnotify_init();	
+	zmq_setsockopt (rn->subscriber, ZMQ_SUBSCRIBE, "", strlen (""));
+	rsubscribe(rn, "/localtmp/dump/1");
+	rsubscribe(rn, "/localtmp/dump/2");
+	rsubscribe(rn, "/localtmp/dump/3");
+	rsubscribe(rn, "/localtmp/dump/4");
+	start_listener(rn, print_notifications);
+	//cleanup
 	return 0;
 }
-void parse_notifications(char *buff, ssize_t len, int* count)
-{
-	ssize_t i = 0;
-        while (i < len) {
-                struct inotify_event *pevent = (struct inotify_event *)&buff[i];
-		print_notifications(pevent);
-		*count = *count + 1;
-		printf("Count = %d \n", *count);
-                i += sizeof(struct inotify_event) + pevent->len;
-        }
-
-}
-

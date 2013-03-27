@@ -42,7 +42,6 @@ int main ()
 	
 	CHECK(fd = inotify_init()); 
 	zthread_fork(ctx, subscription_receiver, (void*)(&fd));
-	//subscription_receiver(ctx, (void*)(&fd));
 
 	while (1)
 	{
@@ -64,9 +63,9 @@ void flush_notifications(int fd, void* publisher)
 	ssize_t len;
 	char action[81+FILENAME_MAX] = {0};
 	char buff[BUFF_SIZE] = {0};
+
 	len = read (fd, buff, BUFF_SIZE);
 	flush(buff, len, publisher);
-	//print_notifications(buff, len);
 }
 
 

@@ -159,7 +159,7 @@ if [ "$CCNAME" = "gcc" ]; then
     export LD_LIBRARY_PATH=/usr/local/lib
     [ -z "$BOOM_MODEL_NOOPT" ] && CCDEBUG="-O2"
     [ -z "$BOOM_MODEL_NOOPT" ] && CCNODEBUG="$CCNODEBUG -O2"
-    CCOPTS="-L /usr/local/lib -D_REENTRANT -D_GNU_SOURCE -Wall -Wno-unused -fno-strict-aliasing"
+    CCOPTS="-L /usr/local/lib -D_REENTRANT -D_GNU_SOURCE -Wall -Wno-unused `pkg-config --cflags --libs glib-2.0` -fno-strict-aliasing"
     #  We assume the following standard libraries are all present.
     #  If your build is failing because of missing libraries then
     #  either you are missing development packages, or are on a non-standard/old
@@ -172,7 +172,7 @@ if [ "$CCNAME" = "gcc" ]; then
     if [ "$UTYPE" = "Linux" ]; then
         #  Use -start-group / -end-group for linkingi
         echo "building on linux"
-        STDLIBS="$STDLIBS -lrt -lcrypt -luuid -lzmq -L /usr/local/lib/ /usr/local/lib/libczmq.so*"
+        STDLIBS="$STDLIBS -lglib-2.0 -lrt -lcrypt -luuid -lzmq -L /usr/local/lib/ /usr/local/lib/libczmq.so*"
         LINKTYPE="gnu"
     #
     #  Darwin-specific subsection

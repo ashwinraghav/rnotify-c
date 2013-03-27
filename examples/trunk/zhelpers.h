@@ -182,26 +182,38 @@ s_console (const char *format, ...)
 
 static void two_part_publish(void *socket, char* string){
 	struct inotify_event *pevent = (struct inotify_event *)string;
-	int serial_length = sizeof(struct inotify_event) + pevent->len;
-	
 	if (pevent->len)
 	{
-		zmsg_t *msg = zmsg_recv (socket);
-		zframe_t *content, *path_filter = zframe_new(pevent->name, strlen(pevent->name));
-		assert(content = zframe_new (string, serial_length));
+		int serial_length = sizeof(struct inotify_event) + pevent->len;
+		char *filter = malloc(10);
+		
+		//create a frame with wd as the filter
+		sprintf(filter, "%d", pevent->wd);
 
-		zframe_send (&path_filter, socket, ZFRAME_REUSE + ZFRAME_MORE);
-		zframe_send (&content, socket, 0);
+		printf("Publishing with the filters %s", filter);
+
+		zframe_t *content_frame, *filter_frame = zframe_new(filter, strlen(filter));
+		assert(content_frame = zframe_new (string, serial_length));
+
+		//send the filter frame as the first part
+		zframe_send (&filter_frame, socket, ZFRAME_REUSE + ZFRAME_MORE);
+
+		//send the content frame as the second part.
+		//Will be received only by relevant
+		//subscribers
+		zframe_send (&content_frame, socket, 0);
+
+		free(filter);
 	}
 }
 
 static char* two_part_receive(void *socket, int *size){
+	//receive the first part containing the message filter
 	zmsg_t *msg = zmsg_recv (socket);
         zframe_t *path_filter = zmsg_pop (msg);
         zframe_t *content = zmsg_pop (msg);
         assert (content);
 	char *string1 = zframe_strdup (path_filter);
-	printf("%s is the filter", string1);
 	char *string = zframe_strdup (content);
 	*size = zframe_size(content);
 	zframe_destroy(&path_filter);

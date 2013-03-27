@@ -17,7 +17,7 @@ static void listener_thread (void *args, zctx_t *ctx, void *pipe)
 		zframe_t *frame = zframe_recv (pipe);
 		if (!frame)
 			break; //  Interrupted
-		//zframe_print (frame, NULL);
+		zframe_print (frame, NULL);
 		zframe_destroy (&frame);
 	}
 }
@@ -32,7 +32,7 @@ int main (void)
 	void *publisher = create_socket(ctx, ZMQ_XPUB, SOCK_BIND, FRONTEND);
 
 	void *listener = zthread_fork (ctx, listener_thread, NULL);
-	zmq_proxy (subscriber, publisher, NULL);
+	zmq_proxy (subscriber, publisher, listener);
 	puts (" interrupted");
 	zctx_destroy (&ctx);
 	return 0;
