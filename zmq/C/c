@@ -172,7 +172,7 @@ if [ "$CCNAME" = "gcc" ]; then
     if [ "$UTYPE" = "Linux" ]; then
         #  Use -start-group / -end-group for linkingi
         echo "building on linux"
-        STDLIBS="$STDLIBS -lrt -lcrypt -luuid   -Wl /usr/local/lib/libzmq.so.* /usr/local/lib/libczmq.so*"
+        STDLIBS="$STDLIBS -lrt -lcrypt -luuid -lzmq -L /usr/local/lib/ /usr/local/lib/libczmq.so*"
         LINKTYPE="gnu"
     #
     #  Darwin-specific subsection
