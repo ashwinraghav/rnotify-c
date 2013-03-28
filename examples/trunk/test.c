@@ -1,13 +1,33 @@
-#include "glib.h"
-int main(){
-GHashTable* hash = g_hash_table_new(g_str_hash, g_str_equal);
- g_hash_table_insert(hash, "Virginia", "Richmond");
- g_hash_table_insert(hash, "Texas", "Austin");
- g_hash_table_insert(hash, "Ohio", "Columbus");
- printf("There are %d keys in the hash\n", g_hash_table_size(hash));
- printf("The capital of Texas is %s\n", g_hash_table_lookup(hash, "Texas"));
- gboolean found = g_hash_table_remove(hash, "Virginia");
- printf("The value 'Virginia' was %sfound and removed\n", found ? "" : "not ");
- g_hash_table_destroy(hash);
+#include <stdio.h>
+
+#include <string.h> /* for strncpy */
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <net/if.h>
+
+int
+main()
+{
+ int fd;
+ struct ifreq ifr;
+
+ fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+ /* I want to get an IPv4 IP address */
+ ifr.ifr_addr.sa_family = AF_INET;
+
+ /* I want IP address attached to "eth0" */
+ strncpy(ifr.ifr_name, "eth0", IFNAMSIZ-1);
+
+ ioctl(fd, SIOCGIFADDR, &ifr);
+
+ close(fd);
+
+ /* display result */
+ printf("%s\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+
  return 0;
 }

@@ -5,11 +5,11 @@
 #define BUFF_SIZE ((sizeof(struct inotify_event)+FILENAME_MAX)*2000)
 
 #ifdef PRODUCTION
-	#define SEND_SOCK "tcp://*:5556"
-	#define SUB_RECV_SOCK "tcp://*:5558"
+	#define SEND_SOCK "tcp://*:" PROXY_FLUSH_PORT
+	#define SUB_RECV_SOCK "tcp://*:" PROXY_SUBSCRIBE_PORT
 #else	
-	#define SEND_SOCK "ipc:///tmp/5556"
-	#define SUB_RECV_SOCK "ipc:///tmp/5558"
+	#define SEND_SOCK "ipc:///tmp/" PROXY_FLUSH_PORT
+	#define SUB_RECV_SOCK "ipc:///tmp/" PROXY_SUBSCRIBE_PORT
 #endif
 
 void start_proxy(int fd, void* publisher);
@@ -38,7 +38,6 @@ int main ()
 	zctx_t *ctx = zctx_new ();
 	assert(ctx);
 	void *publisher = create_socket(ctx, ZMQ_PUSH, SOCK_BIND, SEND_SOCK);
-	
 	
 	CHECK(fd = inotify_init()); 
 	zthread_fork(ctx, subscription_receiver, (void*)(&fd));

@@ -6,11 +6,11 @@
 #define THREAD_COUNT 50
 
 #ifdef PRODUCTION
-	#define RECEIVE_SOCKET "tcp://localhost:5556"
-	#define DISPATCH_SOCKET "tcp://localhost:6500"
+	#define RECEIVE_SOCKET "tcp://localhost:" PROXY_FLUSH_PORT
+	#define DISPATCH_SOCKET "tcp://localhost:" DISPATCH_PORT
 #else
-	#define RECEIVE_SOCKET "ipc:///tmp/5556"
-	#define DISPATCH_SOCKET "ipc:///tmp/6500"
+	#define RECEIVE_SOCKET "ipc:///tmp/" PROXY_FLUSH_PORT
+	#define DISPATCH_SOCKET "ipc:///tmp/" DISPATCH_PORT
 #endif
 
 void parse_notifications(char *buff, ssize_t len, void* dispatch_socket);
@@ -62,15 +62,12 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 		char *buff = safe_recv(work_receiver_socket, &size);
 
 		ssize_t i = 0;
-		char action[81+FILENAME_MAX] = {0};
 		while (i < size) {
 			struct inotify_event *pevent = (struct inotify_event *)&buff[i];
 
 			if (pevent->len)
 			{
-				int serial_length = sizeof(struct inotify_event) + pevent->len;
-				two_part_publish(dispatch_socket, &buff[i]);
-				//dispatch(&buff[i], serial_length, dispatch_socket);
+				two_phase_notify(dispatch_socket, pevent);
 			}
 			print_notifications(pevent);
 			i += sizeof(struct inotify_event) + pevent->len;

@@ -31,33 +31,12 @@ rnot* rnotify_init()
 	return (rn);
 }
 
-//will start a new listener every time it is invoked. 
-void start_listener(rnot *rn, void (*handler)(struct inotify_event*)){
-	int count = 0;
-	
-	while(true)
-	{
-		int len=0;
-		char *buff = two_part_receive(rn->listener, &len);
-		ssize_t current_pos = 0;
-		while (current_pos < len) {
-			struct inotify_event *pevent = (struct inotify_event *)&buff[current_pos];
-			(*handler)(pevent);
-			count = count + 1;
-			printf("Count = %d \n", count);
-			current_pos += sizeof(struct inotify_event) + pevent->len;
-		}
-
-		free (buff);
-	}
-}
-
 //call does not return until registration is complete
 void rsubscribe(rnot *rn, char* file_path){
 
 	//Sends the Subscription to the file host as a REQ
 	printf("\nSubscribing");
-	safe_send(rn->subscriber, file_path, strlen(file_path)+1);
+	safe_send(rn->subscriber, file_path, strlen(file_path));
 
 	//Received the registration Id as a REP
 	int size;
@@ -72,6 +51,29 @@ void rsubscribe(rnot *rn, char* file_path){
 
 	free(registration_id);
 }
+
+//will start a new listener every time it is invoked. 
+void start_listener(rnot *rn, void (*handler)(struct inotify_event*)){
+	int count = 0;
+	
+	while(true)
+	{
+		int len=0;
+		char **buff = two_part_receive(rn->listener, &len);
+		ssize_t current_pos = 0;
+		while (current_pos < len) {
+			struct inotify_event *pevent = (struct inotify_event *)&buff[0][current_pos];
+			(*handler)(pevent);
+			count = count + 1;
+			printf("Count = %d \n", count);
+			current_pos += sizeof(struct inotify_event) + pevent->len;
+		}
+
+		free (buff[0]);
+		free (buff[1]);
+	}
+}
+
 //caveats
 //1. The Hash Table's Values are on the heap and never freed
 //2. Contents of the rn are never freed
