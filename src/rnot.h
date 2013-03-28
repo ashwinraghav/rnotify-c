@@ -1,3 +1,5 @@
+#ifndef RNOT_HEADER_INCLUDED
+#define RNOT_HEADER_INCLUDED
 #include "zhelpers.h"
 #include "czmq.h"
 #include "unistd.h"
@@ -77,3 +79,4 @@ void start_listener(rnot *rn, void (*handler)(struct inotify_event*)){
 //caveats
 //1. The Hash Table's Values are on the heap and never freed
 //2. Contents of the rn are never freed
+#endif

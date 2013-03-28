@@ -1,6 +1,8 @@
 #include "zhelpers.h"
 #include "czmq.h"
 #include<sys/inotify.h>
+#include<zhelpers.h>
+#include "ip.h"
 
 #define WORKER_SOCKET "inproc://#1"
 #define THREAD_COUNT 50
@@ -21,6 +23,7 @@ void create_parser_threads(int nthreads, zctx_t *ctx);
 int main (int argc, char *argv [])
 {
         zctx_t *ctx = zctx_new ();
+	self_register(ctx, REGISTER_DISPATCHER_SANITY_CHECK);
 	
 	void *subscriber = create_socket(ctx, ZMQ_PULL, SOCK_CONNECT, RECEIVE_SOCKET);
 	void *worker = create_socket(ctx, ZMQ_PUSH, SOCK_BIND, WORKER_SOCKET);

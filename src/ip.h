@@ -1,3 +1,5 @@
+#ifndef IP_HEADER_INCLUDED
+#define IP_HEADER_INCLUDED
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -6,6 +8,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <glib.h>
+
+char* get_ip_address();
 
 char* get_ip_address()
 {
@@ -47,3 +51,4 @@ char* get_ip_address()
 	}
 	return "";
 }
+#endif

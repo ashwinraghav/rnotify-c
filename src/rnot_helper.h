@@ -1,3 +1,7 @@
+
+#ifndef RNOT_HELPER_HEADER_INCLUDED
+#define RNOT_HELPER_HEADER_INCLUDED
+
 #include <sys/inotify.h>
 #include <zmq.h>
 #include <czmq.h>
@@ -12,10 +16,18 @@
 #include <assert.h>
 #include <signal.h>
 #include <uuid/uuid.h>
+#include "ip.h"
+
+#ifdef PRODUCTION
+	#define REGISTRATION_ADDR "tcp://*:" REGISTER_PORT
+#else
+	#define REGISTRATION_ADDR "ipc:///tmp/" REGISTER_PORT
+#endif
 
 #define REPLICATION_FACTOR 3
 
 #define REGISTER_PUBLISHER_SANITY_CHECK "1756372"
+#define REGISTER_DISPATCHER_SANITY_CHECK "6577392"
 
 #define PROXY_FLUSH_PORT "5556"
 #define PROXY_SUBSCRIBE_PORT "5558"
@@ -33,6 +45,7 @@
 		fprintf(stderr, "Runtime error: %s returned %s at %s:%d", #x, strerror(errno), __FILE__, __LINE__); \
 	} \
 } while (0)
+
 
 static void two_phase_notify(void *socket, struct inotify_event *pevent)
 {
@@ -190,3 +203,11 @@ static char* register_notification(int fd, char* file_name){
 	sprintf(str, "%d", wd);
 	return str;
 }
+
+static void self_register(zctx_t *ctx, char* registration_type){
+	void *register_sock = create_socket(ctx, ZMQ_PUSH, SOCK_CONNECT, REGISTRATION_ADDR);
+	char *my_ip_address = (char*) get_ip_address();
+	two_phase_register(register_sock, my_ip_address, registration_type);
+	free(my_ip_address);
+}
+#endif
