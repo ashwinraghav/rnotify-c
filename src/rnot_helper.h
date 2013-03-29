@@ -18,25 +18,27 @@
 #include <uuid/uuid.h>
 #include "ip.h"
 
-#ifdef PRODUCTION
-	#define REGISTRATION_ADDR "tcp://*:" REGISTER_PORT
-#else
-	#define REGISTRATION_ADDR "ipc:///tmp/" REGISTER_PORT
-#endif
 
 #define REPLICATION_FACTOR 3
 
 #define REGISTER_PUBLISHER_SANITY_CHECK "1756372"
 #define REGISTER_DISPATCHER_SANITY_CHECK "6577392"
 
-#define PROXY_FLUSH_PORT "5556"
-#define PROXY_SUBSCRIBE_PORT "5558"
-#define DISPATCH_PORT "6500"
-#define PUBLISH_PORT "6001"
-#define REGISTER_PORT "7675"
+#define PROXY_FLUSH_PORT "1000"
+#define PROXY_SUBSCRIBE_PORT "2000"
+#define DISPATCH_PORT "3000"
+#define DISPATCHER_NOTIFY_PORT "4000"
+#define PUBLISH_PORT "5000"
+#define REGISTER_PORT "6000"
 
 #define SOCK_BIND 17273
 #define SOCK_CONNECT 276346
+
+#ifdef PRODUCTION
+	#define REGISTRATION_ADDR "tcp://*:" REGISTER_PORT
+#else
+	#define REGISTRATION_ADDR "ipc:///tmp/" REGISTER_PORT
+#endif
 
 //error check - print if erroneous
 #define CHECK(x) do { \

@@ -1,7 +1,7 @@
 #include "zhelpers.h"
 #include "czmq.h"
-#include<sys/inotify.h>
-#include<zhelpers.h>
+#include <sys/inotify.h>
+#include <zhelpers.h>
 #include "ip.h"
 
 #define WORKER_SOCKET "inproc://#1"
