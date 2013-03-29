@@ -64,7 +64,7 @@ void start_listener(rnot *rn, void (*handler)(struct inotify_event*)){
 		char **buff = two_part_receive(rn->listener, &len);
 		ssize_t current_pos = 0;
 		while (current_pos < len) {
-			struct inotify_event *pevent = (struct inotify_event *)&buff[0][current_pos];
+			struct inotify_event *pevent = (struct inotify_event *)&buff[1][current_pos];
 			(*handler)(pevent);
 			count = count + 1;
 			printf("Count = %d \n", count);

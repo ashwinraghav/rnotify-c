@@ -55,10 +55,10 @@ static void two_phase_notify(void *socket, struct inotify_event *pevent)
 	//create a frame with wd as the filter
 	sprintf(filter, "%d", pevent->wd);
 
-	printf("Publishing with the filters %s", filter);
+	fprintf(stderr, "Publishing with the filters %s", pevent->name);
 
 	zframe_t *content_frame, *filter_frame = zframe_new(filter, strlen(filter));
-	assert(content_frame = zframe_new (pevent, serial_length));
+	assert(content_frame = zframe_new ((char*)(pevent), serial_length));
 
 	//send the filter frame as the first part
 	zframe_send (&filter_frame, socket, ZFRAME_REUSE + ZFRAME_MORE);
@@ -95,8 +95,8 @@ static char** two_part_receive(void *socket, int *size)
 	assert(part1 = zmsg_pop (msg));
 	assert(part2 = zmsg_pop (msg));
         
-	ret[1] = zframe_strdup(part2);
 	ret[0] = zframe_strdup(part1);
+	ret[1] = zframe_strdup(part2);
 
 	*size = zframe_size(part1);
 	
@@ -171,10 +171,10 @@ static void print_notifications(struct inotify_event *pevent)
 		strcat(action, " was opened");
 
 
-	printf ("wd=%d mask=%d cookie=%d len=%d dir=%s\n",pevent->wd, pevent->mask, pevent->cookie, pevent->len,  (pevent->mask & IN_ISDIR)?"yes":"no");
+	fprintf (stderr, "wd=%d mask=%d cookie=%d len=%d dir=%s\n",pevent->wd, pevent->mask, pevent->cookie, pevent->len,  (pevent->mask & IN_ISDIR)?"yes":"no");
 
 	if (pevent->len) 
-		printf ("name=%s\n", pevent->name);
+		fprintf (stderr, "name=%s\n", pevent->name);
 }
 
 static void print_error (int error)

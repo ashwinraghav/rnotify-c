@@ -17,11 +17,11 @@ static void accept_registrations(void *args, zctx_t *ctx, void *pipe)
 
 		if(strcmp(registration[0], REGISTER_PUBLISHER_SANITY_CHECK) == 0){
 			hash_ring_add_node(publishers, (uint8_t*)registration[1], strlen(registration[1]));
-			printf("\n\nReceived registration for publisher %s", registration[1]);
+			fprintf(stderr, "\n\nReceived registration for publisher %s", registration[1]);
 		}
 		else if(strcmp(registration[0], REGISTER_DISPATCHER_SANITY_CHECK) == 0){
 			hash_ring_add_node(dispatchers, (uint8_t*)registration[1], strlen(registration[1]));
-			printf("\n\nReceived registration for dispatcher %s", registration[1]);
+			fprintf(stderr, "\n\nReceived registration for dispatcher %s", registration[1]);
 		}
 		
 		//hash_ring_print(publishers);
