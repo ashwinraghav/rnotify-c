@@ -21,11 +21,11 @@ static void subscription_receiver(void* args, zctx_t* ctx, void *pipe){
 	int wd, size, *fd = (int*) args;
 	fprintf(stderr, "\nStarting thread");
 	while(true){
-		char *file_name = safe_recv(sub_recv_socket, &size);
+		char* const file_name = safe_recv(sub_recv_socket, &size);
 
-		char *registration_id = register_notification(*fd, file_name);
+		char* const registration_id = register_notification(*fd, file_name);
 		
-		safe_send(sub_recv_socket, registration_id, size);
+		safe_send(sub_recv_socket, registration_id, strlen(registration_id));
 		free(registration_id);
 		free(file_name);
 	}

@@ -19,7 +19,7 @@
 #include "ip.h"
 
 
-#define REPLICATION_FACTOR 3
+#define REPLICATION_FACTOR 10
 #define PRODUCTION
 #define REGISTER_PUBLISHER_SANITY_CHECK "1756372"
 #define REGISTER_DISPATCHER_SANITY_CHECK "6577392"
@@ -52,10 +52,10 @@
 } while (0)
 
 
-static void two_phase_notify(void *socket, struct inotify_event *pevent)
+static void two_phase_notify(void *socket, const struct inotify_event* const pevent)
 {
 	int serial_length = sizeof(struct inotify_event) + pevent->len;
-	char *filter = malloc(10);
+	char* const filter = malloc(10);
 
 	//create a frame with wd as the filter
 	sprintf(filter, "%d", pevent->wd);
@@ -76,7 +76,7 @@ static void two_phase_notify(void *socket, struct inotify_event *pevent)
 	free(filter);
 }
 
-static void two_phase_register(void *socket, char *ip, char *registration_type){
+static void two_phase_register(void* const socket, const char* const ip, const char* const registration_type){
 	zframe_t *frame1, *frame2;
 
 	assert(frame1 = zframe_new(registration_type, 
@@ -89,7 +89,7 @@ static void two_phase_register(void *socket, char *ip, char *registration_type){
 	zframe_send (&frame2, socket, 0);
 }
 
-static char** two_part_receive(void *socket, int *size)
+static char** two_part_receive(void* const socket, int *size)
 {
 	zframe_t *part1, *part2;
 	char **ret = (char**) malloc(2*sizeof(char*));	
@@ -112,7 +112,7 @@ static char** two_part_receive(void *socket, int *size)
 	return(ret);
 }
 
-static int safe_send(void *socket, char *string, size_t len) {
+static int safe_send(void* const socket, const char* const string, size_t len) {
 	int rc; zmsg_t *msg ; zframe_t *frame;;
 	
 	assert (msg = zmsg_new());
@@ -125,7 +125,7 @@ static int safe_send(void *socket, char *string, size_t len) {
 	return (len);
 }
 
-static char* safe_recv(void *socket, int *size) {
+static char* safe_recv(void* const socket, int* size) {
 	int rc; zmsg_t *msg ; zframe_t *frame;
 	
 	assert(msg = zmsg_recv (socket));
@@ -140,7 +140,7 @@ static char* safe_recv(void *socket, int *size) {
 	return (string);
 }
 
-static void print_notifications(struct inotify_event *pevent)
+static void print_notifications(const struct inotify_event* const pevent)
 {
 
 	char action[81+FILENAME_MAX] = {0};
@@ -188,9 +188,9 @@ static void print_error (int error)
 
 }
 
-static void* create_socket(zctx_t *ctx, int type, int mode, char* address)
+static void* create_socket(zctx_t* const ctx, int type, int mode, const char* const address)
 {
-	void *sock = zsocket_new (ctx, type);
+	void* const sock = zsocket_new (ctx, type);
 	zsocket_set_hwm(sock, 100000);
 	if(mode == SOCK_BIND) 	
 		zsocket_bind(sock, address);
@@ -200,19 +200,19 @@ static void* create_socket(zctx_t *ctx, int type, int mode, char* address)
 	return sock;
 }
 
-static char* register_notification(int fd, char* file_name){
+static char* register_notification(int fd, const char* const file_name){
 	int wd;
-	char *str = malloc(10);
+	char* const str = malloc(10);
 	CHECK(wd = inotify_add_watch (fd, file_name, IN_ALL_EVENTS)); 
 	fprintf(stderr, "\n added watch for %s with wd %d", file_name, wd);
 	sprintf(str, "%d", wd);
 	return str;
 }
 
-static void self_register(zctx_t *ctx, char* registration_type, char *port){
-	void *register_sock = create_socket(ctx, ZMQ_PUSH, SOCK_CONNECT, REGISTRATION_ADDR);
-	char *my_ip_address = (char*) get_ip_address();
-	char *address = malloc(
+static void self_register(zctx_t* const ctx, const char* const registration_type, const char* const port){
+	void* const register_sock = create_socket(ctx, ZMQ_PUSH, SOCK_CONNECT, REGISTRATION_ADDR);
+	const char* const my_ip_address = (char*) get_ip_address();
+	char* const address = malloc(
 				sizeof(char)*(
 				strlen("tcp://") +
 				strlen(my_ip_address) +
@@ -223,7 +223,18 @@ static void self_register(zctx_t *ctx, char* registration_type, char *port){
 	strcat(strcat(strcat(strcpy(address,"tcp://"), my_ip_address), ":"), port);
 	two_phase_register(register_sock, address, registration_type);
 	
-	free(my_ip_address);
-	free(address);
+	free((void*) my_ip_address);
+	free((void*) address);
 }
+
+//returns a new c string. Needs to be freed
+static char* to_c_string(char * str, int str_len, int size)
+{
+	char* const c_string = malloc (sizeof(char) * (size) );
+	memcpy(c_string, str, str_len);
+	c_string[str_len] = 0;
+	return c_string;
+}
+
+
 #endif

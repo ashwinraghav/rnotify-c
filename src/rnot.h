@@ -17,11 +17,11 @@
 typedef struct rnot_struct{
 	zctx_t *ctx;
 	GHashTable* hash;
-	void *subscriber;
-	void *listener;
+	void* subscriber;
+	void*listener;
 }rnot;
 
-rnot* rnotify_init()
+const rnot* rnotify_init()
 {
 	rnot *rn = malloc(sizeof(rnot));
 	rn->ctx = zctx_new();
@@ -34,7 +34,7 @@ rnot* rnotify_init()
 }
 
 //call does not return until registration is complete
-void rsubscribe(rnot *rn, char* file_path){
+void rsubscribe(const rnot* const rn, char* const file_path){
 
 	//Sends the Subscription to the file host as a REQ
 	printf("\nSubscribing");
@@ -55,7 +55,7 @@ void rsubscribe(rnot *rn, char* file_path){
 }
 
 //will start a new listener every time it is invoked. 
-void start_listener(rnot *rn, void (*handler)(struct inotify_event*)){
+void start_listener(const rnot* const rn, void (*handler)(const struct inotify_event* const p)){
 	int count = 0;
 	
 	while(true)

@@ -7,6 +7,7 @@
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <net/if.h>
+#include <stdlib.h>
 #define REGISTER_PORT "6000"
 
 #define REGISTRAR_IP_ADDR "asdfasdf"
@@ -16,6 +17,10 @@
 int
 main()
 {
-	fprintf(stderr, "%s", REGISTRATION_ADDR);
- return 0;
+double random_number = rand();
+int i=0;
+srand(time(NULL));
+int r = rand();
+printf("%d", r%10);
+return 0;
 }

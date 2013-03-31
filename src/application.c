@@ -8,7 +8,7 @@
 
 int main (void)
 {	
-	rnot *rn = rnotify_init();	
+	const rnot* const rn = rnotify_init();	
 	zmq_setsockopt (rn->subscriber, ZMQ_SUBSCRIBE, "", strlen (""));
 	rsubscribe(rn, "/localtmp/dump/1");
 	rsubscribe(rn, "/localtmp/dump/2");

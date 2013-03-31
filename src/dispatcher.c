@@ -74,13 +74,11 @@ void dispatch(char* update, int len, void* dispatch_socket)
 static void publisher_updater(void *args, zctx_t *ctx, void *pipe){
 	publishers_info *pub_interface = (struct publisher_list_struct*)args;
 	void *publisher_updater_socket = create_socket(ctx, ZMQ_SUB, SOCK_CONNECT, DISPATCHER_NOTIFY_ADDR);
-
 	zmq_setsockopt (publisher_updater_socket, ZMQ_SUBSCRIBE, "", strlen (""));
 	while(true)
 	{
 		int size;
 		char *publisher_addr = safe_recv(publisher_updater_socket, &size);
-
 
 		hash_ring_add_node(pub_interface->publisher_ring, (uint8_t*)publisher_addr, strlen(publisher_addr));
 		void *dispatch_socket = create_socket(ctx, ZMQ_PUB, SOCK_CONNECT, publisher_addr);
@@ -91,6 +89,25 @@ static void publisher_updater(void *args, zctx_t *ctx, void *pipe){
 	}
 }
 
+static void* get_random_publisher(struct inotify_event *pevent, publishers_info *pub_interface)
+{
+	char * instance_num = malloc(10);
+	sprintf(instance_num, "%d",  (rand()%REPLICATION_FACTOR) + 1);
+
+	char * publishable = to_c_string(pevent->name, pevent->len, (pevent->len + strlen(instance_num) + 1));
+	strcat(publishable, instance_num);
+
+	hash_ring_node_t *node = hash_ring_find_node(pub_interface->publisher_ring, (uint8_t*)publishable, strlen(publishable));
+
+	char *publisher = to_c_string((char*)node->name, node->nameLen, node->nameLen + 1);
+	void* ret =  g_hash_table_lookup(pub_interface->publisher_socks, publisher);
+	
+	free(publisher);
+	free(publishable);
+	free(instance_num);
+	return ret;
+
+}
 static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 	void *work_receiver_socket = create_socket(ctx, ZMQ_PULL, SOCK_CONNECT, WORKER_SOCKET);
 	publishers_info *pub_interface = (publishers_info*)args;
@@ -101,20 +118,21 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 		char *buff = safe_recv(work_receiver_socket, &size);
 
 		ssize_t i = 0;
+		srand(time(NULL));
+	
 		while (i < size) {
 			struct inotify_event *pevent = (struct inotify_event *)&buff[i];
 
 			if (pevent->len)
 			{
-				hash_ring_node_t *node = hash_ring_find_node(pub_interface->publisher_ring, (uint8_t*)pevent->name, (uint32_t)pevent->len);
-				void *dispatch_socket = g_hash_table_lookup(pub_interface->publisher_socks, "tcp://192.168.1.2:3000");				
-				fprintf(stderr, "\n%s is the identified publisher", node->name);
+				void *dispatch_socket = get_random_publisher(pevent, pub_interface);
 				if(dispatch_socket == NULL){
 					fprintf(stderr, "\n it is null");
 					fprintf(stderr, "\n size of table %d", g_hash_table_size(pub_interface->publisher_socks));
-				
 				}	
+
 				two_phase_notify(dispatch_socket, pevent);
+
 			}
 			print_notifications(pevent);
 			i += sizeof(struct inotify_event) + pevent->len;
@@ -122,3 +140,5 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 		free (buff);
 	}
 }
+
+//random number generator does not seem uniform
