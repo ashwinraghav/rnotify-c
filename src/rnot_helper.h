@@ -20,22 +20,25 @@
 
 
 #define REPLICATION_FACTOR 3
-
+#define PRODUCTION
 #define REGISTER_PUBLISHER_SANITY_CHECK "1756372"
 #define REGISTER_DISPATCHER_SANITY_CHECK "6577392"
 
-#define PROXY_FLUSH_PORT "1000"
 #define PROXY_SUBSCRIBE_PORT "2000"
 #define DISPATCH_PORT "3000"
 #define DISPATCHER_NOTIFY_PORT "4000"
 #define PUBLISH_PORT "5000"
 #define REGISTER_PORT "6000"
+#define PROXY_FLUSH_PORT "7000"
 
 #define SOCK_BIND 17273
 #define SOCK_CONNECT 276346
 
+#define REGISTRAR_IP_ADDR "localhost"
+#define FILE_HOST_IP_ADDR "localhost"
+
 #ifdef PRODUCTION
-	#define REGISTRATION_ADDR "tcp://*:" REGISTER_PORT
+	#define REGISTRATION_ADDR "tcp://" REGISTRAR_IP_ADDR ":" REGISTER_PORT
 #else
 	#define REGISTRATION_ADDR "ipc:///tmp/" REGISTER_PORT
 #endif
@@ -57,7 +60,7 @@ static void two_phase_notify(void *socket, struct inotify_event *pevent)
 	//create a frame with wd as the filter
 	sprintf(filter, "%d", pevent->wd);
 
-	fprintf(stderr, "Publishing with the filters %s", pevent->name);
+	//fprintf(stderr, "Publishing with the filters %s", pevent->wd);
 
 	zframe_t *content_frame, *filter_frame = zframe_new(filter, strlen(filter));
 	assert(content_frame = zframe_new ((char*)(pevent), serial_length));
@@ -201,15 +204,26 @@ static char* register_notification(int fd, char* file_name){
 	int wd;
 	char *str = malloc(10);
 	CHECK(wd = inotify_add_watch (fd, file_name, IN_ALL_EVENTS)); 
-	printf("\n added watch for %s", file_name);
+	fprintf(stderr, "\n added watch for %s with wd %d", file_name, wd);
 	sprintf(str, "%d", wd);
 	return str;
 }
 
-static void self_register(zctx_t *ctx, char* registration_type){
+static void self_register(zctx_t *ctx, char* registration_type, char *port){
 	void *register_sock = create_socket(ctx, ZMQ_PUSH, SOCK_CONNECT, REGISTRATION_ADDR);
 	char *my_ip_address = (char*) get_ip_address();
-	two_phase_register(register_sock, my_ip_address, registration_type);
+	char *address = malloc(
+				sizeof(char)*(
+				strlen("tcp://") +
+				strlen(my_ip_address) +
+				strlen(port) + 
+				strlen(":")
+				)+1);
+	
+	strcat(strcat(strcat(strcpy(address,"tcp://"), my_ip_address), ":"), port);
+	two_phase_register(register_sock, address, registration_type);
+	
 	free(my_ip_address);
+	free(address);
 }
 #endif

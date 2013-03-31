@@ -5,11 +5,11 @@
 #define BUFF_SIZE ((sizeof(struct inotify_event)+FILENAME_MAX)*2000)
 
 #ifdef PRODUCTION
-	#define SEND_SOCK "tcp://*:" PROXY_FLUSH_PORT
-	#define SUB_RECV_SOCK "tcp://*:" PROXY_SUBSCRIBE_PORT
+	#define FLUSH_ADDR "tcp://*:" PROXY_FLUSH_PORT
+	#define SUBSCRIPTION_RECV_ADDR "tcp://*:" PROXY_SUBSCRIBE_PORT
 #else	
-	#define SEND_SOCK "ipc:///tmp/" PROXY_FLUSH_PORT
-	#define SUB_RECV_SOCK "ipc:///tmp/" PROXY_SUBSCRIBE_PORT
+	#define FLUSH_ADDR "ipc:///tmp/" PROXY_FLUSH_PORT
+	#define SUBSCRIPTION_RECV_ADDR "ipc:///tmp/" PROXY_SUBSCRIBE_PORT
 #endif
 
 void start_proxy(int fd, void* publisher);
@@ -17,9 +17,9 @@ void handle_error (int error);
 void flush (char* update, int len, void* publisher);
 
 static void subscription_receiver(void* args, zctx_t* ctx, void *pipe){
-	void *sub_recv_socket = create_socket(ctx, ZMQ_REP, SOCK_BIND, SUB_RECV_SOCK);
+	void *sub_recv_socket = create_socket(ctx, ZMQ_REP, SOCK_BIND, SUBSCRIPTION_RECV_ADDR);
 	int wd, size, *fd = (int*) args;
-	printf("\nStarting thread");
+	fprintf(stderr, "\nStarting thread");
 	while(true){
 		char *file_name = safe_recv(sub_recv_socket, &size);
 
@@ -37,7 +37,7 @@ int main ()
         int fd, wd;
 	zctx_t *ctx = zctx_new ();
 	assert(ctx);
-	void *publisher = create_socket(ctx, ZMQ_PUSH, SOCK_BIND, SEND_SOCK);
+	void *publisher = create_socket(ctx, ZMQ_PUSH, SOCK_BIND, FLUSH_ADDR);
 	
 	CHECK(fd = inotify_init()); 
 	zthread_fork(ctx, subscription_receiver, (void*)(&fd));

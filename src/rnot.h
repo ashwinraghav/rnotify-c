@@ -8,11 +8,11 @@
 
 
 #ifdef PRODUCTION
-	#define LISTEN_SOCK "tcp://localhost:6001"
-	#define SUBSCRIBE_TO_SOCK "tcp://localhost:5558"
+	#define LISTEN_SOCK "tcp://localhost:" PUBLISH_PORT
+	#define SUBSCRIBE_TO_SOCK "tcp://" FILE_HOST_IP_ADDR ":" PROXY_SUBSCRIBE_PORT
 #else
-	#define LISTEN_SOCK "ipc:///tmp/6001"
-	#define SUBSCRIBE_TO_SOCK "ipc:///tmp/5558"
+	#define LISTEN_SOCK "ipc:///tmp/" PUBLISH_PORT
+	#define SUBSCRIBE_TO_SOCK "ipc:///tmp/" PROXY_SUBSCRIBE_PORT
 #endif
 typedef struct rnot_struct{
 	zctx_t *ctx;
@@ -47,7 +47,7 @@ void rsubscribe(rnot *rn, char* file_path){
 	
 	//Map file name to regId
 	g_hash_table_insert(rn->hash,file_path, registration_id);
-	
+		
 	//Set filter with the regId
 	zmq_setsockopt (rn->listener, ZMQ_SUBSCRIBE, registration_id, strlen (registration_id));
 

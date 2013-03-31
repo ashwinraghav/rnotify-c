@@ -2,11 +2,9 @@
 #include "czmq.h"
 
 #ifdef PRODUCTION
-	#define REGISTRATION_ADDR "tcp://localhost:" REGISTER_PORT
 	#define BACKEND_ADDR "tcp://*:" DISPATCH_PORT
 	#define FRONTEND_ADDR "tcp://*:" PUBLISH_PORT
 #else
-	#define REGISTRATION_ADDR "ipc:///tmp/" REGISTER_PORT
 	#define BACKEND_ADDR "ipc:///tmp/" DISPATCH_PORT
 	#define FRONTEND_ADDR "ipc:///tmp/" PUBLISH_PORT
 #endif
@@ -30,7 +28,7 @@ int main (void)
 {
 	zctx_t *ctx = zctx_new ();
 
-	self_register(ctx, REGISTER_PUBLISHER_SANITY_CHECK);
+	self_register(ctx, REGISTER_PUBLISHER_SANITY_CHECK, DISPATCH_PORT);
 
 	int io_threads = 4;
 	zctx_set_iothreads (ctx,  io_threads);	

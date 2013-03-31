@@ -4,42 +4,13 @@
 #include<sys/inotify.h>
 #include<glib.h>
 
-static char* get_address_from_ring_entry(hash_ring_node_t *cur, char *port)
-{
-	char *dispatcher_address = malloc(
-				sizeof(char)*(
-				strlen("tcp://") +
-				cur->nameLen +
-				strlen(port) + 
-				strlen(":")
-				)+1);
-	
-	char *host_name=malloc(cur->nameLen+1);
-	memcpy(host_name, cur->name, cur->nameLen);
-	host_name[cur->nameLen] = '\0';
-
-	strcat(strcat(strcat(strcpy(dispatcher_address,"tcp://"), host_name), ":"), port);
-
-	free(host_name);
-
-	return dispatcher_address;
-}
-
-static void notify_all(hash_ring_t *ring, char* message, char* port){	
-	if(ring == NULL) return;
-	zctx_t *ctx = zctx_new();
-	ll_t *tmp, *cur = ring->nodes;
-	while(cur != NULL) {
-		hash_ring_node_t *node = (hash_ring_node_t*)cur->data;
-		char *dispatcher_address = get_address_from_ring_entry(node, port);
-		fprintf(stderr, "\n%s is the dispatcher", dispatcher_address);
-		//void *sock = create_socket(ctx, ZMQ_PUSH, SOCK_CONNECT, dispatcher_address);
-		//safe_send(sock, message, strlen(message));
-		free(dispatcher_address);
-		cur = cur->next;
-	}
-	zctx_destroy (&ctx);
-}
+#ifdef PRODUCTION
+	#define DISPATCHER_NOTIFY_ADDR "tcp://*:" DISPATCHER_NOTIFY_PORT
+	#define ME "tcp://*:" REGISTER_PORT
+#else
+	#define DISPATCHER_NOTIFY_ADDR "ipc:///tmp/" DISPATCHER_NOTIFY_PORT
+	#define ME "ipc:///tmp/" REGISTER_PORT
+#endif
 
 //thread to accept new publisher registrations
 static void accept_registrations(void *args, zctx_t *ctx, void *pipe)
@@ -47,7 +18,8 @@ static void accept_registrations(void *args, zctx_t *ctx, void *pipe)
 	hash_ring_t *publisher_ring = hash_ring_create(REPLICATION_FACTOR, HASH_FUNCTION_SHA1);
 	hash_ring_t *dispatcher_ring = hash_ring_create(REPLICATION_FACTOR, HASH_FUNCTION_SHA1);
 
-	void *sub_recv_sock = create_socket(ctx, ZMQ_PULL, SOCK_BIND, REGISTRATION_ADDR);
+	void *sub_recv_sock = create_socket(ctx, ZMQ_PULL, SOCK_BIND, ME);
+	void *dispatcher_notify_sock = create_socket(ctx, ZMQ_PUB, SOCK_BIND, DISPATCHER_NOTIFY_ADDR);
 	while(true){
 		int len;
 		char **registration = two_part_receive(sub_recv_sock, &len);
@@ -56,7 +28,9 @@ static void accept_registrations(void *args, zctx_t *ctx, void *pipe)
 		if(strcmp(registration[0], REGISTER_PUBLISHER_SANITY_CHECK) == 0)
 		{
 			hash_ring_add_node(publisher_ring, (uint8_t*)registration[1], strlen(registration[1]));
-			notify_all(dispatcher_ring, registration[1], DISPATCHER_NOTIFY_PORT);
+
+			safe_send(dispatcher_notify_sock, registration[1], strlen(registration[1]));
+
 			fprintf(stderr, "\n\nReceived registration for publisher %s", registration[1]);
 		}
 		else if(strcmp(registration[0], REGISTER_DISPATCHER_SANITY_CHECK) == 0)
@@ -78,6 +52,46 @@ int main (){
 	accept_registrations(NULL, ctx, NULL);
 	zctx_destroy (&ctx);
 	return 0;
+}
+
+static char* get_address_from_ring_entry(hash_ring_node_t *cur, char *port)
+{
+	char *dispatcher_address = malloc(
+				sizeof(char)*(
+				strlen("tcp://") +
+				cur->nameLen +
+				strlen(port) + 
+				strlen(":")
+				)+1);
+	
+	char *host_name=malloc(cur->nameLen+1);
+	memcpy(host_name, cur->name, cur->nameLen);
+	host_name[cur->nameLen] = '\0';
+
+	strcat(strcat(strcat(strcpy(dispatcher_address,"tcp://"), host_name), ":"), port);
+
+	free(host_name);
+
+	return dispatcher_address;
+}
+
+//Iterate over all dispatchers and notify
+//Usage -- notify_all(dispatcher_ring, registration[1], DISPATCHER_NOTIFY_PORT);
+//notify_all(dispatcher_ring, registration[1], DISPATCHER_NOTIFY_PORT);
+static void notify_all(hash_ring_t *ring, char* message, char* port){	
+	if(ring == NULL) return;
+	zctx_t *ctx = zctx_new();
+	ll_t *tmp, *cur = ring->nodes;
+	while(cur != NULL) {
+		hash_ring_node_t *node = (hash_ring_node_t*)cur->data;
+		char *dispatcher_address = get_address_from_ring_entry(node, port);
+		fprintf(stderr, "\n%s is the dispatcher", dispatcher_address);
+		void *sock = create_socket(ctx, ZMQ_PUSH, SOCK_CONNECT, dispatcher_address);
+		safe_send(sock, message, strlen(message));
+		free(dispatcher_address);
+		cur = cur->next;
+	}
+	zctx_destroy (&ctx);
 }
 
 //Unclear on whether the char arrays passed to the hashing ring are freed
