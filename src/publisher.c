@@ -27,8 +27,9 @@ static void listener_thread (void *args, zctx_t *ctx, void *pipe)
 int main (void)
 {
 	zctx_t *ctx = zctx_new ();
-
-	self_register(ctx, REGISTER_PUBLISHER_SANITY_CHECK, DISPATCH_PORT);
+	int size;
+	char ** registration_response = self_register(ctx, REGISTER_PUBLISHER_SANITY_CHECK, DISPATCH_PORT, &size);
+	free(registration_response);
 
 	int io_threads = 4;
 	zctx_set_iothreads (ctx,  io_threads);	

@@ -219,8 +219,10 @@ fi
 #   Patch together the CC options and defines into one variable
 CCOPTS="$CCOPTS $CCDEFINES"
 if [ "$BOOM_MODEL_DEBUG" ]; then
+    echo "debugging"
     CCOPTS="-g -DDEBUG $CCDEBUG $CCOPTS"
 else
+    echo " nodebugging"
     CCOPTS="$CCNODEBUG $CCOPTS"
 fi
 

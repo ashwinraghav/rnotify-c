@@ -23,6 +23,8 @@
 #define PRODUCTION
 #define REGISTER_PUBLISHER_SANITY_CHECK "1756372"
 #define REGISTER_DISPATCHER_SANITY_CHECK "6577392"
+#define REGISTER_FILE_OBJECT_SANITY_CHECK "63540274"
+#define REGISTER_OK "hfjjdhfnc8"
 
 #define PROXY_SUBSCRIBE_PORT "2000"
 #define DISPATCH_PORT "3000"
@@ -51,68 +53,107 @@
 	} \
 } while (0)
 
-
-static void two_phase_notify(void *socket, const struct inotify_event* const pevent)
+static void multi_part_send(void* const socket, zframe_t **content, int size)
 {
-	int serial_length = sizeof(struct inotify_event) + pevent->len;
-	char* const filter = malloc(10);
+	int i=0;
+	int code = ZFRAME_REUSE + ZFRAME_MORE;
+	for(i = 0; i< size; i++){
+		if(i == size -1)
+			code = 0;
+		zframe_send(&content[i], socket, code);
+	}
+}
 
-	//create a frame with wd as the filter
+static void notify(void *socket, const struct inotify_event* const pevent)
+{
+	char* const filter = malloc(10);
 	sprintf(filter, "%d", pevent->wd);
 
-	//fprintf(stderr, "Publishing with the filters %s", pevent->wd);
+	zframe_t **content = malloc(sizeof(zframe_t*) * 2);
+	int serial_length = sizeof(struct inotify_event) + pevent->len;
 
-	zframe_t *content_frame, *filter_frame = zframe_new(filter, strlen(filter));
-	assert(content_frame = zframe_new ((char*)(pevent), serial_length));
+	assert(content[0] = zframe_new(filter, strlen(filter)));
+	assert(content[1] = zframe_new((char*)pevent, serial_length));
 
-	//send the filter frame as the first part
-	zframe_send (&filter_frame, socket, ZFRAME_REUSE + ZFRAME_MORE);
-
-	//send the content frame as the second part.
-	//Will be received only by relevant
-	//subscribers
-	zframe_send (&content_frame, socket, 0);
+	multi_part_send(socket, content, 2);	
 
 	free(filter);
+	free(content);
 }
 
-static void two_phase_register(void* const socket, const char* const ip, const char* const registration_type){
-	zframe_t *frame1, *frame2;
-
-	assert(frame1 = zframe_new(registration_type, 
-			strlen(registration_type)));
-
-	assert(frame2 = zframe_new (ip, strlen(ip)));
-
-	//send the registration frame followed by ip
-	zframe_send (&frame1, socket, ZFRAME_REUSE + ZFRAME_MORE);
-	zframe_send (&frame2, socket, 0);
-}
-
-static char** two_part_receive(void* const socket, int *size)
+static char** multi_part_receive(void* const socket, int* const size)
 {
-	zframe_t *part1, *part2;
-	char **ret = (char**) malloc(2*sizeof(char*));	
-
-	//receive the first part containing the message filter
 	zmsg_t *msg = zmsg_recv (socket); 
-	
-	assert(part1 = zmsg_pop (msg));
-	assert(part2 = zmsg_pop (msg));
-        
-	ret[0] = zframe_strdup(part1);
-	ret[1] = zframe_strdup(part2);
+	int i =0;
 
-	*size = zframe_size(part1);
+	*size = zmsg_size(msg);
+	char **ret = (char**) malloc((*size) * sizeof(char*));	
 	
-	zframe_destroy(&part1);
-	zframe_destroy(&part2);
+	for(i = 0; i < *size; i++){
+		assert(ret[i] = zmsg_popstr(msg));
+	}	
+	
         zmsg_destroy (&msg);
 	
 	return(ret);
 }
 
-static int safe_send(void* const socket, const char* const string, size_t len) {
+
+static char** _register(void* const socket, const char* const registration_body, const char* const registration_type, int *response_size){
+	zframe_t **content = malloc(sizeof(zframe_t*) * 2);
+	
+	assert(content[0] = zframe_new(registration_type, strlen(registration_type)));
+	assert(content[1] = zframe_new(registration_body, strlen(registration_body)));
+	
+	multi_part_send(socket, content, 2);
+	free(content);
+
+	char ** registration_response = multi_part_receive(socket, response_size);
+	return registration_response;
+}
+
+static int _send(void* const socket, const char** const string, size_t len) {
+	zframe_t **content = malloc(sizeof(zframe_t*) * len);
+	int i = 0;
+
+	for(i = 0;i<len;i++){
+		assert(content[i] = zframe_new(string[i], strlen(string[i])));
+	}
+	
+	multi_part_send(socket, content, len);
+	free(content);
+	return (len);
+}
+
+static char* _recv_buff(void* const socket, int* size) {
+	int rc; zmsg_t *msg ; zframe_t *frame;
+
+	assert(msg = zmsg_recv (socket));
+	assert(frame = zmsg_pop(msg));
+
+	char *string = zframe_strdup (frame);
+	*size = zframe_size(frame);
+
+	zframe_destroy(&frame);
+	zmsg_destroy (&msg);
+
+	return (string);
+}
+
+static int _send_buff(void* const socket, const char* const string, size_t len) {
+	
+	char ** buff = malloc(sizeof(char*) * 1);
+	buff[0] = malloc(sizeof(char) * (len + 1));
+	memcpy(buff[0], string, len);
+	buff[0][len] = 0;
+	_send(socket, (const char** const )buff, 1);
+	free(buff);
+	free(buff[0]);
+	return len;	
+}
+
+static int _send_string(void* const socket, const char* const string, size_t len) {
+	
 	int rc; zmsg_t *msg ; zframe_t *frame;;
 	
 	assert (msg = zmsg_new());
@@ -123,21 +164,6 @@ static int safe_send(void* const socket, const char* const string, size_t len) {
 	assert(zmsg_size (msg) == 1); assert (zmsg_content_size (msg) == len);
 	assert(zmsg_send (&msg, socket) == 0); assert (msg == NULL);
 	return (len);
-}
-
-static char* safe_recv(void* const socket, int* size) {
-	int rc; zmsg_t *msg ; zframe_t *frame;
-	
-	assert(msg = zmsg_recv (socket));
-	assert(frame = zmsg_pop(msg));
-
-	char *string = zframe_strdup (frame);
-	*size = zframe_size(frame);
-	
-	zframe_destroy(&frame);
-	zmsg_destroy (&msg);
-	
-	return (string);
 }
 
 static void print_notifications(const struct inotify_event* const pevent)
@@ -209,22 +235,26 @@ static char* register_notification(int fd, const char* const file_name){
 	return str;
 }
 
-static void self_register(zctx_t* const ctx, const char* const registration_type, const char* const port){
-	void* const register_sock = create_socket(ctx, ZMQ_PUSH, SOCK_CONNECT, REGISTRATION_ADDR);
+static char** self_register(zctx_t* const ctx, const char* const registration_type, const char* const my_port, int * const response_size){
+	void* const register_sock = create_socket(ctx, ZMQ_REQ, SOCK_CONNECT, REGISTRATION_ADDR);
 	const char* const my_ip_address = (char*) get_ip_address();
 	char* const address = malloc(
 				sizeof(char)*(
 				strlen("tcp://") +
 				strlen(my_ip_address) +
-				strlen(port) + 
+				strlen(my_port) + 
 				strlen(":")
 				)+1);
 	
-	strcat(strcat(strcat(strcpy(address,"tcp://"), my_ip_address), ":"), port);
-	two_phase_register(register_sock, address, registration_type);
-	
+	strcat(strcat(strcat(strcpy(address,"tcp://"), my_ip_address), ":"), my_port);
+	char ** registration_response = _register(register_sock, address, registration_type, response_size);
+
 	free((void*) my_ip_address);
 	free((void*) address);
+	zsocket_destroy (ctx, register_sock);
+
+	//free sock
+	return registration_response;
 }
 
 //returns a new c string. Needs to be freed
@@ -235,6 +265,5 @@ static char* to_c_string(char * str, int str_len, int size)
 	c_string[str_len] = 0;
 	return c_string;
 }
-
 
 #endif

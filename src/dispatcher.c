@@ -28,7 +28,6 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe);
 void create_parser_threads(int nthreads, zctx_t *ctx, publishers_info *publisher_ring);
 static void publisher_updater(void *args, zctx_t *ctx, void *pipe);
 
-
 int main (int argc, char *argv [])
 {
         zctx_t *ctx = zctx_new ();
@@ -48,8 +47,8 @@ int main (int argc, char *argv [])
 	while(true)
 	{
 		int size;
-		char *string = safe_recv(subscriber, &size);
-		safe_send(worker, string, size);
+		char *string = _recv_buff(subscriber, &size);
+		_send_string(worker, string, size);
 		free (string);
 	}
 	zctx_destroy (&ctx);
@@ -68,7 +67,7 @@ void create_parser_threads(int nthreads, zctx_t *ctx, publishers_info *pub_inter
 
 void dispatch(char* update, int len, void* dispatch_socket)
 {
-	int sent_size = safe_send(dispatch_socket, update, len);
+	int sent_size = _send_string(dispatch_socket, update, len);
 }
 
 static void publisher_updater(void *args, zctx_t *ctx, void *pipe){
@@ -78,7 +77,7 @@ static void publisher_updater(void *args, zctx_t *ctx, void *pipe){
 	while(true)
 	{
 		int size;
-		char *publisher_addr = safe_recv(publisher_updater_socket, &size);
+		char *publisher_addr = _recv_buff(publisher_updater_socket, &size);
 
 		hash_ring_add_node(pub_interface->publisher_ring, (uint8_t*)publisher_addr, strlen(publisher_addr));
 		void *dispatch_socket = create_socket(ctx, ZMQ_PUB, SOCK_CONNECT, publisher_addr);
@@ -115,7 +114,7 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 	while(true)
 	{
 		int size;
-		char *buff = safe_recv(work_receiver_socket, &size);
+		char *buff = _recv_buff(work_receiver_socket, &size);
 
 		ssize_t i = 0;
 		srand(time(NULL));
@@ -131,7 +130,7 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 					fprintf(stderr, "\n size of table %d", g_hash_table_size(pub_interface->publisher_socks));
 				}	
 
-				two_phase_notify(dispatch_socket, pevent);
+				notify(dispatch_socket, pevent);
 
 			}
 			print_notifications(pevent);

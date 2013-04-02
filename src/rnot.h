@@ -9,10 +9,8 @@
 
 #ifdef PRODUCTION
 	#define LISTEN_SOCK "tcp://localhost:" PUBLISH_PORT
-	#define SUBSCRIBE_TO_SOCK "tcp://" FILE_HOST_IP_ADDR ":" PROXY_SUBSCRIBE_PORT
 #else
 	#define LISTEN_SOCK "ipc:///tmp/" PUBLISH_PORT
-	#define SUBSCRIBE_TO_SOCK "ipc:///tmp/" PROXY_SUBSCRIBE_PORT
 #endif
 typedef struct rnot_struct{
 	zctx_t *ctx;
@@ -28,7 +26,7 @@ const rnot* rnotify_init()
 	rn->hash = g_hash_table_new(g_str_hash, g_str_equal);
 	
 	rn->listener = create_socket(rn->ctx, ZMQ_SUB, SOCK_CONNECT, LISTEN_SOCK);
-	rn->subscriber = create_socket(rn->ctx, ZMQ_REQ, SOCK_CONNECT, SUBSCRIBE_TO_SOCK);
+	rn->subscriber = create_socket(rn->ctx, ZMQ_REQ, SOCK_CONNECT, REGISTRATION_ADDR);
 
 	return (rn);
 }
@@ -36,22 +34,18 @@ const rnot* rnotify_init()
 //call does not return until registration is complete
 void rsubscribe(const rnot* const rn, char* const file_path){
 
-	//Sends the Subscription to the file host as a REQ
-	printf("\nSubscribing");
-	safe_send(rn->subscriber, file_path, strlen(file_path));
-
-	//Received the registration Id as a REP
+	fprintf(stderr, "\nSubscribing");
 	int size;
-	char *registration_id = safe_recv(rn->subscriber, &size);
-	printf("\n added watch with id %s", registration_id);
-	
+	char ** registration_response = _register(rn->subscriber, file_path, REGISTER_FILE_OBJECT_SANITY_CHECK, &size);
+	fprintf(stderr, "\n added watch with id %s", registration_response[1]);
+
+		
 	//Map file name to regId
-	g_hash_table_insert(rn->hash,file_path, registration_id);
+	//g_hash_table_insert(rn->hash,file_path, registration_response);
 		
 	//Set filter with the regId
-	zmq_setsockopt (rn->listener, ZMQ_SUBSCRIBE, registration_id, strlen (registration_id));
-
-	free(registration_id);
+	zmq_setsockopt (rn->listener, ZMQ_SUBSCRIBE, "1", strlen ("1"));
+	//nothing freed yet
 }
 
 //will start a new listener every time it is invoked. 
@@ -61,9 +55,10 @@ void start_listener(const rnot* const rn, void (*handler)(const struct inotify_e
 	while(true)
 	{
 		int len=0;
-		char **buff = two_part_receive(rn->listener, &len);
+		char **buff = multi_part_receive(rn->listener, &len);
 		ssize_t current_pos = 0;
-		while (current_pos < len) {
+		int buff_len = strlen(buff[1]);
+		while (current_pos < buff_len) {
 			struct inotify_event *pevent = (struct inotify_event *)&buff[1][current_pos];
 			(*handler)(pevent);
 			count = count + 1;
