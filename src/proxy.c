@@ -17,32 +17,28 @@ void handle_error (int error);
 void flush (char* update, int len, void* publisher);
 
 static int s_interrupted = 0;
-zctx_t *ctx;
 
-static void s_signal_handler (int signal_value)
-{
-	s_interrupted = 1;
-}
-
-static void s_catch_signals (void)
-{
-	struct sigaction action;
-	action.sa_handler = s_signal_handler;
-	action.sa_flags = 0;
-	sigemptyset (&action.sa_mask);
-	sigaction (SIGINT, &action, NULL);
-	sigaction (SIGTERM, &action, NULL);
-}
 static void subscription_receiver(void* args, zctx_t* ctx, void *pipe){
+	void *sub_recv_socket = create_socket(ctx, ZMQ_REP, SOCK_BIND, SUBSCRIPTION_RECV_ADDR);
+	int wd, size, *fd = (int*) args;
+	fprintf(stderr, "\nStarting thread");
+
+	while(true){
+		char* const file_name = _recv_buff(sub_recv_socket, &size);
+		char* const registration_id = register_notification(*fd, file_name);
+
+		_send_string(sub_recv_socket, registration_id, strlen(registration_id));
+		free(registration_id);
+		free(file_name);
+	}
 }
 
 int main ()
 {
         int fd, wd;
-	ctx = zctx_new ();
+	zctx_t *ctx = zctx_new ();
 	assert(ctx);
 	void *publisher = create_socket(ctx, ZMQ_PUSH, SOCK_BIND, FLUSH_ADDR);
-	s_catch_signals();	
 	CHECK(fd = inotify_init()); 
 	zthread_fork(ctx, subscription_receiver, (void*)(&fd));
 
@@ -63,10 +59,12 @@ void flush (char* update, int len, void* publisher)
 void start_proxy(int fd, void* publisher)
 {
 	char *buff = malloc(BUFF_SIZE);
-	while(!s_interrupted){
+	while(1){
 		ssize_t len;
 		len = read (fd, buff, BUFF_SIZE);
 		flush(buff, len, publisher);
 	}
 	free(buff);
 }
+
+
