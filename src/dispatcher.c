@@ -4,6 +4,8 @@
 #include <zhelpers.h>
 #include "ip.h"
 #include <hash_ring.h>
+#include<glib.h>
+#include <unistd.h>
 
 #define WORKER_SOCKET "inproc://#1"
 #define THREAD_COUNT 1
@@ -49,6 +51,7 @@ int main (int argc, char *argv [])
 		int size;
 		char *string = _recv_buff(subscriber, &size);
 		_send_string(worker, string, size);
+		fprintf(stderr, "\n Flush came in");
 		free (string);
 	}
 	zctx_destroy (&ctx);
@@ -58,7 +61,7 @@ int main (int argc, char *argv [])
 
 void create_parser_threads(int nthreads, zctx_t *ctx, publishers_info *pub_interface)
 {
-	for (nthreads=0; nthreads < 50; nthreads++)
+	for (nthreads=0; nthreads < THREAD_COUNT; nthreads++)
 	{
 		zthread_fork(ctx, parser_thread, pub_interface);
 	}
@@ -110,6 +113,7 @@ static void* get_random_publisher(struct inotify_event *pevent, publishers_info 
 static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 	void *work_receiver_socket = create_socket(ctx, ZMQ_PULL, SOCK_CONNECT, WORKER_SOCKET);
 	publishers_info *pub_interface = (publishers_info*)args;
+	//void *dispatch_socket = create_socket(ctx, ZMQ_PUB, SOCK_CONNECT, "tcp://192.168.1.2:3000");
 
 	while(true)
 	{
@@ -125,6 +129,7 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 			if (pevent->len)
 			{
 				void *dispatch_socket = get_random_publisher(pevent, pub_interface);
+				get_random_publisher(pevent, pub_interface);
 				if(dispatch_socket == NULL){
 					fprintf(stderr, "\n it is null");
 					fprintf(stderr, "\n size of table %d", g_hash_table_size(pub_interface->publisher_socks));
@@ -133,7 +138,7 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 				notify(dispatch_socket, pevent);
 
 			}
-			print_notifications(pevent);
+			//print_notifications(pevent);
 			i += sizeof(struct inotify_event) + pevent->len;
 		}
 		free (buff);
@@ -141,3 +146,4 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 }
 
 //random number generator does not seem uniform
+//mallocing inside get random publisher too many times

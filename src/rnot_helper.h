@@ -17,7 +17,8 @@
 #include <signal.h>
 #include <uuid/uuid.h>
 #include "ip.h"
-
+#include <sys/time.h>
+#include <math.h>
 
 #define REPLICATION_FACTOR 10
 #define PRODUCTION
@@ -266,4 +267,16 @@ static char* to_c_string(char * str, int str_len, int size)
 	return c_string;
 }
 
+static void* create_new_hash_table(){
+	//zhash_t *hash = zhash_new ();
+	return g_hash_table_new(g_str_hash, g_str_equal);
+}
+
+static void insert_into_table(void* table, char* key, void* value){
+	zhash_insert((zhash_t*) table,key, value);
+}
+
+static void* table_lookup(void* table, char* key){
+	return zhash_lookup (table, key);
+}
 #endif
