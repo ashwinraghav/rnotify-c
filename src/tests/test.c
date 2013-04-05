@@ -66,7 +66,8 @@ int main (int argc, char *argv [])
 
 	pub_interface->publisher_socks = g_hash_table_new(g_str_hash, g_str_equal);
 	
-	void *dispatch_socket = create_socket(ctx, ZMQ_PUB, SOCK_CONNECT, "tcp://192.168.1.2:3000");
+	void *dispatch_socket = NULL;
+	create_socket(ctx, dispatch_socket, ZMQ_PUB, SOCK_CONNECT, "tcp://192.168.1.2:3000");
 	g_hash_table_insert(pub_interface->publisher_socks,"tcp://192.168.1.2:3000", dispatch_socket);
 	int i=0;
 

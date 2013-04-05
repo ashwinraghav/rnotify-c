@@ -14,6 +14,13 @@
 	#define SUBSCRIBE_TO_SOCK "ipc:///tmp/" PROXY_SUBSCRIBE_PORT
 #endif
 
+typedef struct publisher_struct{
+	char* ip;
+	char* accept_port;
+	char* publish_port;
+}publisher;
+
+
 static GHashTable * get_publishers_table(char * file_name, hash_ring_t* publisher_ring)
 {
 	char * instance_num = malloc(10);
@@ -37,11 +44,30 @@ static GHashTable * get_publishers_table(char * file_name, hash_ring_t* publishe
 	return publishers_table;	
 }
 
+static publisher* new_publisher(char* ip, char* accept_port, char* publish_port){
+	publisher *p = malloc(sizeof(publisher));
+	p->ip = to_c_string(ip, strlen(ip), strlen(ip) +1);
+	p->accept_port = to_c_string(accept_port, strlen(accept_port), strlen(accept_port) +1);
+	p->publish_port = to_c_string(publish_port, strlen(publish_port), strlen(publish_port) +1);
+	return p;
+}
+static char* notify_dispatchers(void* dispatcher_notify_sock, publisher *p){
+	char *accept_addr = to_c_string(p->ip, 
+			strlen(p->ip), 
+			strlen(p->ip) + strlen(":") + strlen(p->accept_port) + 1);
+	strcat(accept_addr, ":");
+	strcat(accept_addr, p->accept_port);
+	
+	_send_string(dispatcher_notify_sock, accept_addr, strlen(accept_addr));
+	return accept_addr;
+}
+
 //thread to accept new publisher registrations
 static void accept_registrations(void *args, zctx_t *ctx, void *pipe)
 {
 	hash_ring_t *publisher_ring = hash_ring_create(REPLICATION_FACTOR, HASH_FUNCTION_SHA1);
 	hash_ring_t *dispatcher_ring = hash_ring_create(REPLICATION_FACTOR, HASH_FUNCTION_SHA1);
+	GHashTable* publishers = g_hash_table_new(g_str_hash, g_str_equal);
 
 	void *sub_recv_sock = create_socket(ctx, ZMQ_REP, SOCK_BIND, ME);
 	void *dispatcher_notify_sock = create_socket(ctx, ZMQ_PUB, SOCK_BIND, DISPATCHER_NOTIFY_ADDR);
@@ -55,53 +81,65 @@ static void accept_registrations(void *args, zctx_t *ctx, void *pipe)
 
 		if(strcmp(registration[0], REGISTER_PUBLISHER_SANITY_CHECK) == 0)
 		{
-
-			hash_ring_add_node(publisher_ring, (uint8_t*)registration[1], strlen(registration[1]));
-
+			fprintf(stderr, "\n\nReceived registration for publisher %s", registration[1]);
+			publisher *p = new_publisher(registration[1], registration[2], registration[3]);
+			free(registration[2]);
+			free(registration[3]);
+			
 			//respond success
 			_send_string(sub_recv_sock, (const char* const) REGISTER_OK, strlen(REGISTER_OK));
 
-			//notify dispatcher
-			_send_string(dispatcher_notify_sock, registration[1], strlen(registration[1]));
-
-
-			fprintf(stderr, "\n\nReceived registration for publisher %s", registration[1]);
+			char* pub_addr = notify_dispatchers(dispatcher_notify_sock, p);
+			hash_ring_add_node(publisher_ring, (uint8_t*)pub_addr, strlen(pub_addr));
+			g_hash_table_insert(publishers, pub_addr, p);
+			//free(accept_addr);
 		}
 		else if(strcmp(registration[0], REGISTER_DISPATCHER_SANITY_CHECK) == 0)
 		{
 			//no response sent .. NEEDS FIX
-			hash_ring_add_node(dispatcher_ring, (uint8_t*)registration[1], strlen(registration[1]));
+			//hash_ring_add_node(dispatcher_ring, (uint8_t*)registration[1], strlen(registration[1]));
 			fprintf(stderr, "\n\nReceived registration for dispatcher %si\n", registration[1]);
 		}
 		else if(strcmp(registration[0], REGISTER_FILE_OBJECT_SANITY_CHECK) == 0){
 			fprintf(stderr, "\n\n File added %s", registration[1]);
 			_send_string(file_subscriber, registration[1], strlen(registration[1]));
+
 			int id_len;
 			char *registration_id = _recv_buff(file_subscriber, &id_len);
 
+			fprintf(stderr, "\n\n ID is %s", registration_id);
 			GHashTable *publishers_table = get_publishers_table(registration[1], publisher_ring);
 				
-			int i = 1;
-			char ** publishers_list = malloc(sizeof(char*) * (g_hash_table_size(publishers_table) + 1));
+			char ** publishers_list = malloc(sizeof(char*) * (g_hash_table_size(publishers_table) + 2));
 			publishers_list[0] = to_c_string(REGISTER_OK, strlen(REGISTER_OK), strlen(REGISTER_OK)+1);
-
+			publishers_list[1] = to_c_string(registration_id, strlen(registration_id), strlen(registration_id)+1);
 			GList * iterator = g_hash_table_get_keys(publishers_table);
+			int i = 2;
+
 			while(iterator != NULL){
-				publishers_list[i] = to_c_string((char*)iterator->data, 
-							strlen(iterator->data), strlen(iterator->data) + 1);
+				char *publish_port =((publisher*)(g_hash_table_lookup(publishers, iterator->data)))->publish_port;
+				char *publish_ip =((publisher*)(g_hash_table_lookup(publishers, iterator->data)))->ip;
+				char* publish_addr = to_c_string((char*)publish_ip, 
+							strlen(publish_ip),
+							strlen(publish_ip) + 
+							strlen(publish_port) + strlen (":") + 1 );
+				strcat(publish_addr, ":");
+				strcat(publish_addr, publish_port);
+				publishers_list[i] = publish_addr;
 				
 				fprintf(stderr, "\n %s", publishers_list[i]);
 				void * value = g_hash_table_lookup(publishers_table, iterator->data);
 				GList * key = iterator;
 				iterator = iterator->next;
 				i++;
-				//free(publishers_list[i]);
 			}
 			_send(sub_recv_sock,(const char **) publishers_list, i);
+			//hash_ring_print(publisher_ring);
 			int j = 0;
 			for(j = 0; j < i; j ++){
 				free(publishers_list[j]);
 			}
+			free(registration_id);
 			g_hash_table_destroy(publishers_table);
 			g_list_free(iterator);
 			free(publishers_list);

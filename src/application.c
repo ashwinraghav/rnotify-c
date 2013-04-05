@@ -9,12 +9,13 @@
 int main (void)
 {	
 	const rnot* const rn = rnotify_init();	
-	zmq_setsockopt (rn->subscriber, ZMQ_SUBSCRIBE, "", strlen (""));
-	rsubscribe(rn, "/localtmp/dump/1");
-	rsubscribe(rn, "/localtmp/dump/2");
-	rsubscribe(rn, "/localtmp/dump/3");
-	rsubscribe(rn, "/localtmp/dump/4");
-	start_listener(rn, print_notifications);
+	//zmq_setsockopt (rn->subscriber, ZMQ_SUBSCRIBE, "", strlen (""));
+	rsubscribe(rn, "/localtmp/dump/1", print_notifications);
+	rsubscribe(rn, "/localtmp/dump/2", print_notifications);
+	rsubscribe(rn, "/localtmp/dump/3", print_notifications);
+	rsubscribe(rn, "/localtmp/dump/4", print_notifications);
+	fprintf(stderr, "listening"); 
+	start_listener(rn);
 	//cleanup
 	return 0;
 }

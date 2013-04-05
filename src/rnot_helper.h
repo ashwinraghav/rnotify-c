@@ -20,6 +20,7 @@
 #include <sys/time.h>
 #include <math.h>
 
+
 #define REPLICATION_FACTOR 10
 #define PRODUCTION
 #define REGISTER_PUBLISHER_SANITY_CHECK "1756372"
@@ -28,9 +29,9 @@
 #define REGISTER_OK "hfjjdhfnc8"
 
 #define PROXY_SUBSCRIBE_PORT "2000"
-#define DISPATCH_PORT "3000"
+#define ACCEPT_PORT "*"
 #define DISPATCHER_NOTIFY_PORT "4000"
-#define PUBLISH_PORT "5000"
+#define PUBLISH_PORT "*"
 #define REGISTER_PORT "6000"
 #define PROXY_FLUSH_PORT "7000"
 
@@ -54,6 +55,7 @@
 	} \
 } while (0)
 
+static char* to_c_string(char * str, int str_len, int size);
 static void multi_part_send(void* const socket, zframe_t **content, int size)
 {
 	int i=0;
@@ -201,12 +203,17 @@ static void print_notifications(const struct inotify_event* const pevent)
 		strcat(action, " moved into watched directory");
 	if (pevent->mask & IN_OPEN) 
 		strcat(action, " was opened");
+	if(strcmp("foo", pevent->name) == 0){
+		fprintf(stderr, "\nGot the file");
+	}
 
+	//fprintf (stderr, "wd=%d mask=%d cookie=%d len=%d dir=%s\n",pevent->wd, pevent->mask, pevent->cookie, pevent->len,  (pevent->mask & IN_ISDIR)?"yes":"no");
 
-	fprintf (stderr, "wd=%d mask=%d cookie=%d len=%d dir=%s\n",pevent->wd, pevent->mask, pevent->cookie, pevent->len,  (pevent->mask & IN_ISDIR)?"yes":"no");
-
-	if (pevent->len) 
-		fprintf (stderr, "name=%s\n", pevent->name);
+	if(strcmp("foo", pevent->name) == 0){
+		fprintf(stderr, "Foo File \n");
+	}
+//	if (pevent->len) 
+//		fprintf (stderr, "name=%s\n", pevent->name);
 }
 
 static void print_error (int error)
@@ -215,9 +222,17 @@ static void print_error (int error)
 
 }
 
+
+static int scan_and_bind_socket(zctx_t* const ctx, void** sock, int type, const char* const address)
+{
+	*sock = zsocket_new (ctx, type);
+	zsocket_set_hwm(*sock, 100000);
+	return zsocket_bind(*sock, address);
+}
+
 static void* create_socket(zctx_t* const ctx, int type, int mode, const char* const address)
 {
-	void* const sock = zsocket_new (ctx, type);
+	void* sock = zsocket_new (ctx, type);
 	zsocket_set_hwm(sock, 100000);
 	if(mode == SOCK_BIND) 	
 		zsocket_bind(sock, address);
@@ -235,6 +250,41 @@ static char* register_notification(int fd, const char* const file_name){
 	sprintf(str, "%d", wd);
 	return str;
 }
+
+static char** register_publisher_service(zctx_t* const ctx, int accept_port, int publish_port, int * const response_size){
+
+	char* const accept_port_string = malloc(10);
+	char* const publish_port_string = malloc(10);
+
+	sprintf(accept_port_string, "%d", accept_port);
+	sprintf(publish_port_string, "%d", publish_port);
+
+
+	void* const register_sock = create_socket(ctx, ZMQ_REQ, SOCK_CONNECT, REGISTRATION_ADDR);
+	const char* const ip = (char*) get_ip_address();
+	char* const ip_string = to_c_string("tcp://", strlen("tcp://") + 1, strlen("tcp://") + 1 + strlen(ip));
+	strcat(ip_string, ip);
+
+	zframe_t **content = malloc(sizeof(zframe_t*) * 4);
+	
+	assert(content[0] = zframe_new(REGISTER_PUBLISHER_SANITY_CHECK, strlen(REGISTER_PUBLISHER_SANITY_CHECK)));
+	assert(content[1] = zframe_new(ip_string, strlen(ip_string)));
+	assert(content[2] = zframe_new(accept_port_string, strlen(accept_port_string)));
+	assert(content[3] = zframe_new(publish_port_string, strlen(publish_port_string)));
+	
+	multi_part_send(register_sock, content, 4);
+	free(content);
+	free((void*)ip);
+	free((void*)ip_string);
+	free(accept_port_string);
+	free(publish_port_string);
+
+	char ** registration_response = multi_part_receive(register_sock, response_size);
+	return registration_response;
+}
+
+
+
 
 static char** self_register(zctx_t* const ctx, const char* const registration_type, const char* const my_port, int * const response_size){
 	void* const register_sock = create_socket(ctx, ZMQ_REQ, SOCK_CONNECT, REGISTRATION_ADDR);
