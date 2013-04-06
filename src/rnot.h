@@ -72,13 +72,11 @@ void start_listener(const rnot* const rn){
 
 	GList * iterator = g_hash_table_get_keys(rn->publisher_socks);
 	while(iterator != NULL){
-		fprintf(stderr, "iterating");
 		zmq_pollitem_t poll_item = {g_hash_table_lookup(rn->publisher_socks, iterator->data),
 			0, ZMQ_POLLIN, 0};
 
 		poll_items[i] = poll_item;
 
-		fprintf(stderr, "appended");
 		iterator = iterator->next;
 		i++;
 	}
