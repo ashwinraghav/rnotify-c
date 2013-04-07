@@ -1,0 +1,8 @@
+#set ami tools paths
+export EC2_KEYPAIR=APKAIU5BGO4HUJIVPPVA
+export EC2_URL=https://ec2.us-east-1.amazonaws.com
+export EC2_PRIVATE_KEY=~/rnotify-c/scripts/pk-5I2T5K2PRRLXYNRZB7Y7RRQMWGTLKHOF.pem
+export EC2_CERT=~/rnotify-c/scripts/cert-5I2T5K2PRRLXYNRZB7Y7RRQMWGTLKHOF.pem
+export JAVA_HOME=/usr/lib/jvm/java-6-openjdk/
+
+
