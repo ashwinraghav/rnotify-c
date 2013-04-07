@@ -6,7 +6,6 @@ sudo apt-get install uuid-dev
 #install git
 sudo apt-get install git
 
-
 #install zeromq
 cd ~
 wget http://download.zeromq.org/zeromq-3.2.2.tar.gz
@@ -36,7 +35,12 @@ cd ~
 
 #clone rnotify repo
 git clone https://github.com/ashwinraghav/rnotify-c.git
-cd rnotify-c/scripts
+
+#install ami tools
+sudo sed -i.dist 's,universe$,universe multiverse,' /etc/apt/sources.list
+sudo apt-get update
+sudo apt-get install ec2-api-tools ec2-ami-tools
+source ~/rnotify-c/scripts/.ami-config-paths
 
 #create watchables
 sudo mkdir /localtmp/
@@ -47,5 +51,7 @@ cp ~/rnotify-c/scripts/create.sh ~/rnotify-c/scripts/modify.sh /localtmp/dump/
 bash create.sh
 cd ~
 
-
+#build
+cd rnotify-c/sec
+./build all
 
