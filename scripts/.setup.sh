@@ -39,6 +39,7 @@ cd ~
 #install lib-hashring
 git clone https://github.com/chrismoos/hash-ring.git
 cd hash-ring/
+sudo make install
 cd ~
 
 #clone rnotify repo
