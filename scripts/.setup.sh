@@ -1,3 +1,11 @@
+#install gcc for micro instance
+sudo apt-get install gcc
+sudo apt-get install g++
+sudo apt-get install make
+
+#install gcc for micro instance
+sudo apt-get install pkg-config
+
 #install glib
 sudo apt-get install libglib2.0-dev
 sudo apt-get install uuid
@@ -52,6 +60,6 @@ bash create.sh
 cd ~
 
 #build
-cd rnotify-c/sec
+cd rnotify-c/src
 ./build all
 
