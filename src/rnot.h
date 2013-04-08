@@ -6,20 +6,6 @@
 #include <glib.h>
 #include<sys/inotify.h>
 
-
-#ifdef PRODUCTION
-	#define LISTEN_ADDR "tcp://localhost:" PUBLISH_PORT
-#else
-	#define LISTEN_ADDR "ipc:///tmp/" PUBLISH_PORT
-#endif
-typedef struct rnot_struct{
-	zctx_t *ctx;
-	GHashTable* publisher_socks;
-	void* subscriber;
-}rnot;
-
-int cast_notification(zloop_t *loop, zmq_pollitem_t *poller, void *arg);
-
 const rnot* rnotify_init()
 {
 	rnot *rn = malloc(sizeof(rnot));
@@ -28,11 +14,16 @@ const rnot* rnotify_init()
 	
 	rn->subscriber = create_socket(rn->ctx, ZMQ_REQ, SOCK_CONNECT, REGISTRATION_ADDR);
 	
+	rn->tester = create_socket(rn->ctx, ZMQ_SUB, SOCK_CONNECT, TEST_INITIATE_ADDR);
+	zmq_setsockopt(rn->tester, ZMQ_SUBSCRIBE, "", strlen(""));
+	
+	rn->result_collect_socket = create_socket(rn->ctx, ZMQ_PUSH, SOCK_CONNECT, TEST_COLLECT_ADDR);
 	return (rn);
 }
 
+
 //call does not return until registration is complete
-void rsubscribe(const rnot* const rn, char* const file_path, void (*handler)(const struct inotify_event* const p )){
+void rsubscribe(const rnot* const rn, char* const file_path){
 
 	fprintf(stderr, "\nSubscribing");
 	int size;
@@ -47,7 +38,7 @@ void rsubscribe(const rnot* const rn, char* const file_path, void (*handler)(con
 		if(sock == NULL){
 			fprintf(stderr, "\ncreating new sock");
 			sock = create_socket(rn->ctx, ZMQ_SUB, SOCK_CONNECT, registration_response[i]);
-			//void *psock = create_socket(rn->ctx, ZMQ_SUB, SOCK_CONNECT, registration_response[i]);
+			void *psock = create_socket(rn->ctx, ZMQ_SUB, SOCK_CONNECT, registration_response[i]);
 		
 			g_hash_table_insert(rn->publisher_socks, registration_response[i], sock);
 		}
@@ -64,7 +55,7 @@ void rsubscribe(const rnot* const rn, char* const file_path, void (*handler)(con
 	//nothing freed yet
 }
 
-void start_listener(const rnot* const rn){
+void start_listener(const rnot* const rn, void (*handler)(const struct inotify_event* const p, void *args), void *args){
 	int i = 0;
 	int table_size = g_hash_table_size(rn->publisher_socks);
 	zmq_pollitem_t poll_items[table_size];
@@ -91,7 +82,7 @@ void start_listener(const rnot* const rn){
 				int buff_len = strlen(buff[1]);
 				while (current_pos < buff_len) {
 					struct inotify_event *pevent = (struct inotify_event *)&buff[1][current_pos];
-					print_notifications(pevent);
+					(*handler)(pevent, args);
 					count += 1;
 					//fprintf(stderr, "\ncount = %d", count);
 					current_pos += sizeof(struct inotify_event) + pevent->len;

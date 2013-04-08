@@ -20,12 +20,22 @@ typedef struct publisher_struct{
 	char* publish_port;
 }publisher;
 
+void  destroy(gpointer data){
+	free((void*) data);
+}
+
+void destroy_publisher(gpointer data){
+	publisher *p = (publisher *) data;
+	free(p->ip);
+	free(p->accept_port);
+	free(p->publish_port);
+}
 
 static GHashTable * get_publishers_table(char * file_name, hash_ring_t* publisher_ring)
 {
 	char * instance_num = malloc(10);
 	int i=0;
-	GHashTable* publishers_table = g_hash_table_new(g_str_hash, g_str_equal);
+	GHashTable* publishers_table = g_hash_table_new_full(g_str_hash, g_str_equal, destroy, destroy);
 
 	for(i = 0;i < REPLICATION_FACTOR;i++){
 		char* instance_num = malloc(10);
@@ -36,7 +46,7 @@ static GHashTable * get_publishers_table(char * file_name, hash_ring_t* publishe
 
 		hash_ring_node_t *node = hash_ring_find_node(publisher_ring, (uint8_t*)publishable, strlen(publishable) + 1);
 		char *publisher = to_c_string((char*)node->name, node->nameLen, node->nameLen + 1);
-		g_hash_table_insert(publishers_table, publisher, publisher);
+		g_hash_table_insert(publishers_table, publisher, to_c_string(publisher, strlen(publisher), strlen(publisher) + 1));
 
 		free(publishable);
 		free(instance_num);
@@ -66,8 +76,8 @@ static char* notify_dispatchers(void* dispatcher_notify_sock, publisher *p){
 static void accept_registrations(void *args, zctx_t *ctx, void *pipe)
 {
 	hash_ring_t *publisher_ring = hash_ring_create(REPLICATION_FACTOR, HASH_FUNCTION_SHA1);
-	hash_ring_t *dispatcher_ring = hash_ring_create(REPLICATION_FACTOR, HASH_FUNCTION_SHA1);
-	GHashTable* publishers = g_hash_table_new(g_str_hash, g_str_equal);
+	//hash_ring_t *dispatcher_ring = hash_ring_create(REPLICATION_FACTOR, HASH_FUNCTION_SHA1);
+	GHashTable* publishers = g_hash_table_new_full(g_str_hash, g_str_equal, destroy, destroy_publisher);
 
 	void *sub_recv_sock = create_socket(ctx, ZMQ_REP, SOCK_BIND, ME);
 	void *dispatcher_notify_sock = create_socket(ctx, ZMQ_PUB, SOCK_BIND, DISPATCHER_NOTIFY_ADDR);
@@ -78,21 +88,18 @@ static void accept_registrations(void *args, zctx_t *ctx, void *pipe)
 		char **registration = multi_part_receive(sub_recv_sock, &n_parts);
 		// 0 th element - sanity checks; 1st element - IP address
 
-
 		if(strcmp(registration[0], REGISTER_PUBLISHER_SANITY_CHECK) == 0)
 		{
 			fprintf(stderr, "\n\nReceived registration for publisher %s", registration[1]);
 			publisher *p = new_publisher(registration[1], registration[2], registration[3]);
-			free(registration[2]);
-			free(registration[3]);
-			
 			//respond success
 			_send_string(sub_recv_sock, (const char* const) REGISTER_OK, strlen(REGISTER_OK));
 
 			char* pub_addr = notify_dispatchers(dispatcher_notify_sock, p);
+			//fprintf(stderr, "%d", strlen(pub_addr));
 			hash_ring_add_node(publisher_ring, (uint8_t*)pub_addr, strlen(pub_addr));
 			g_hash_table_insert(publishers, pub_addr, p);
-			//free(accept_addr);
+			//free(pub_addr);
 		}
 		else if(strcmp(registration[0], REGISTER_DISPATCHER_SANITY_CHECK) == 0)
 		{
@@ -128,10 +135,10 @@ static void accept_registrations(void *args, zctx_t *ctx, void *pipe)
 				publishers_list[i] = publish_addr;
 				
 				fprintf(stderr, "\n %s", publishers_list[i]);
-				void * value = g_hash_table_lookup(publishers_table, iterator->data);
 				GList * key = iterator;
 				iterator = iterator->next;
 				i++;
+				
 			}
 			_send(sub_recv_sock,(const char **) publishers_list, i);
 			//hash_ring_print(publisher_ring);
@@ -140,16 +147,20 @@ static void accept_registrations(void *args, zctx_t *ctx, void *pipe)
 				free(publishers_list[j]);
 			}
 			free(registration_id);
-			g_hash_table_destroy(publishers_table);
 			g_list_free(iterator);
+			g_hash_table_destroy(publishers_table);
 			free(publishers_list);
 		}
 		//hash_ring_print(publisher_ring);
-		free(registration[0]);
-		free(registration[1]);
+		int i=0;
+		for(i=0;i<n_parts;i++){
+			free(registration[i]);
+		}
+		free(registration);
 	}
 	hash_ring_free(publisher_ring);
-	hash_ring_free(dispatcher_ring);
+	//hash_ring_free(dispatcher_ring);
+	g_hash_table_destroy(publishers);
 }
 
 int main (){

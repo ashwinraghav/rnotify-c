@@ -20,7 +20,6 @@
 #include <sys/time.h>
 #include <math.h>
 
-
 #define REPLICATION_FACTOR 10
 #define PRODUCTION
 #define REGISTER_PUBLISHER_SANITY_CHECK "1756372"
@@ -34,6 +33,8 @@
 #define PUBLISH_PORT "*"
 #define REGISTER_PORT "6000"
 #define PROXY_FLUSH_PORT "7000"
+#define INITIATE_PORT "8500"
+#define COLLECT_PORT "8700"
 
 #define SOCK_BIND 17273
 #define SOCK_CONNECT 276346
@@ -43,8 +44,12 @@
 
 #ifdef PRODUCTION
 	#define REGISTRATION_ADDR "tcp://" REGISTRAR_IP_ADDR ":" REGISTER_PORT
+	#define TEST_INITIATE_ADDR "tcp://" REGISTRAR_IP_ADDR ":" INITIATE_PORT
+	#define TEST_COLLECT_ADDR "tcp://" REGISTRAR_IP_ADDR ":" COLLECT_PORT
 #else
 	#define REGISTRATION_ADDR "ipc:///tmp/" REGISTER_PORT
+	#define TEST_INITIATE_ADDR "ipc:///tmp/" INITIATE_PORT
+	#define TEST_COLLECT_ADDR "ipc:///tmp/" COLLECT_PORT
 #endif
 
 //error check - print if erroneous
@@ -54,13 +59,31 @@
 		fprintf(stderr, "Runtime error: %s returned %s at %s:%d", #x, strerror(errno), __FILE__, __LINE__); \
 	} \
 } while (0)
+static int64_t my_clock (void)
+{
+#if (defined (__WINDOWS__))
+	SYSTEMTIME st;
+	GetSystemTime (&st);
+	return (int64_t) st.wSecond * 1000 + st.wMilliseconds;
+#else
+	struct timeval tv;
+	gettimeofday (&tv, NULL);
+	return (int64_t) (tv.tv_sec * 1000 + tv.tv_usec / 1000);
+#endif
+}
+typedef struct rnot_struct{
+	zctx_t *ctx;
+	GHashTable* publisher_socks;
+	int64_t start_time;
+	void* subscriber, *tester, *result_collect_socket;
+}rnot;
 
 static char* to_c_string(char * str, int str_len, int size);
 static void multi_part_send(void* const socket, zframe_t **content, int size)
 {
 	int i=0;
 	int code = ZFRAME_REUSE + ZFRAME_MORE;
-	for(i = 0; i< size; i++){
+	for(i = 0; i < size; i++){
 		if(i == size -1)
 			code = 0;
 		zframe_send(&content[i], socket, code);
@@ -81,6 +104,8 @@ static void notify(void *socket, const struct inotify_event* const pevent)
 	multi_part_send(socket, content, 2);	
 
 	free(filter);
+	free(content[0]);
+	free(content[1]);
 	free(content);
 }
 
@@ -93,6 +118,7 @@ static char** multi_part_receive(void* const socket, int* const size)
 	char **ret = (char**) malloc((*size) * sizeof(char*));	
 	
 	for(i = 0; i < *size; i++){
+		
 		assert(ret[i] = zmsg_popstr(msg));
 	}	
 	
@@ -109,6 +135,9 @@ static char** _register(void* const socket, const char* const registration_body,
 	assert(content[1] = zframe_new(registration_body, strlen(registration_body)));
 	
 	multi_part_send(socket, content, 2);
+
+	free(content[0]);
+	free(content[1]);
 	free(content);
 
 	char ** registration_response = multi_part_receive(socket, response_size);
@@ -124,6 +153,10 @@ static int _send(void* const socket, const char** const string, size_t len) {
 	}
 	
 	multi_part_send(socket, content, len);
+	for(i = 0;i<len;i++){
+		free(content[i]);
+	}
+
 	free(content);
 	return (len);
 }
@@ -138,6 +171,7 @@ static char* _recv_buff(void* const socket, int* size) {
 	*size = zframe_size(frame);
 
 	zframe_destroy(&frame);
+	free(frame);
 	zmsg_destroy (&msg);
 
 	return (string);
@@ -157,19 +191,34 @@ static int _send_buff(void* const socket, const char* const string, size_t len) 
 
 static int _send_string(void* const socket, const char* const string, size_t len) {
 	
-	int rc; zmsg_t *msg ; zframe_t *frame;;
+	//int size = zmq_send (socket, string, strlen (string), 0);
 	
-	assert (msg = zmsg_new());
-	assert(frame = zframe_new (string, len));
+	zframe_t **frame = malloc(sizeof(zframe_t *) * 1);
+	assert(frame[0] = zframe_new(string, len));
+
+	multi_part_send(socket, frame, 1);
+
+	free(frame[0]);
+	free(frame);
+
 	
-	zmsg_push (msg, frame);
+	//free(content[1]);
+	//free(content);
+
+
+	//assert (msg = zmsg_new());
+	//assert(frame = zframe_new (string, len));
 	
-	assert(zmsg_size (msg) == 1); assert (zmsg_content_size (msg) == len);
-	assert(zmsg_send (&msg, socket) == 0); assert (msg == NULL);
+	//zmsg_push (msg, frame);
+	
+	//assert(zmsg_size (msg) == 1); assert (zmsg_content_size (msg) == len);
+	//assert(zmsg_send (&msg, socket) == 0); assert (msg == NULL);
+
+	//free(frame);
 	return (len);
 }
 
-static void print_notifications(const struct inotify_event* const pevent)
+static void print_notifications(const struct inotify_event* const pevent, void *args)
 {
 
 	char action[81+FILENAME_MAX] = {0};
@@ -215,6 +264,7 @@ static void print_notifications(const struct inotify_event* const pevent)
 //	if (pevent->len) 
 //		fprintf (stderr, "name=%s\n", pevent->name);
 }
+
 
 static void print_error (int error)
 {
@@ -273,6 +323,11 @@ static char** register_publisher_service(zctx_t* const ctx, int accept_port, int
 	assert(content[3] = zframe_new(publish_port_string, strlen(publish_port_string)));
 	
 	multi_part_send(register_sock, content, 4);
+	
+	free(content[0]);
+	free(content[1]);
+	free(content[2]);
+	free(content[3]);
 	free(content);
 	free((void*)ip);
 	free((void*)ip_string);
@@ -313,7 +368,7 @@ static char* to_c_string(char * str, int str_len, int size)
 {
 	char* const c_string = malloc (sizeof(char) * (size) );
 	memcpy(c_string, str, str_len);
-	c_string[str_len] = 0;
+	c_string[str_len] = '\0';
 	return c_string;
 }
 

@@ -113,7 +113,6 @@ static void* get_random_publisher(struct inotify_event *pevent, publishers_info 
 static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 	void *work_receiver_socket = create_socket(ctx, ZMQ_PULL, SOCK_CONNECT, WORKER_SOCKET);
 	publishers_info *pub_interface = (publishers_info*)args;
-	//void *dispatch_socket = create_socket(ctx, ZMQ_PUB, SOCK_CONNECT, "tcp://192.168.1.2:3000");
 
 	while(true)
 	{
