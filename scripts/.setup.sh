@@ -48,9 +48,9 @@ cd ~
 git clone https://github.com/ashwinraghav/rnotify-c.git
 
 #install ami tools
-sudo sed -i.dist 's,universe$,universe multiverse,' /etc/apt/sources.list
-sudo apt-get update
-sudo apt-get install ec2-api-tools ec2-ami-tools
+#sudo sed -i.dist 's,universe$,universe multiverse,' /etc/apt/sources.list
+#sudo apt-get update
+#sudo apt-get install ec2-api-tools ec2-ami-tools
 #source ~/rnotify-c/scripts/.ami-config-paths
 
 #create watchables
