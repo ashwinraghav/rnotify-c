@@ -47,10 +47,10 @@ static void test_channel(void* args, zctx_t* ctx, void *pipe){
 			int len;
 			char *response = _recv_buff(result_collect_socket, &len);
 			tot_time += (float)atoi(response);
-			fprintf(stderr, "%s seconds", response);
+			//fprintf(stderr, "%s seconds", response);
 			free(response);
 		}
-		fprintf(stderr, "\n\n Total Average Time = %f", tot_time/(*client_count));
+		fprintf(stderr, "\n\n Total Average Time = %f", (tot_time/(*client_count)));
 		fgets(line, 80, fr);
 		fclose(fr);  	
 	}	
