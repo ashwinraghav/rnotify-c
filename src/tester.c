@@ -42,12 +42,15 @@ static void test_channel(void* args, zctx_t* ctx, void *pipe){
 
 		//collect_reponses
 		int i=0;
+		float tot_time = 0;
 		for(i = 0; i < *client_count; i++){
 			int len;
 			char *response = _recv_buff(result_collect_socket, &len);
+			tot_time += (float)atoi(response);
 			fprintf(stderr, "%s seconds", response);
 			free(response);
 		}
+		fprintf(stderr, "\n\n Total Average Time = %f", tot_time/(*client_count));
 		fgets(line, 80, fr);
 		fclose(fr);  	
 	}	
@@ -55,7 +58,7 @@ static void test_channel(void* args, zctx_t* ctx, void *pipe){
 
 int main (){
 	zctx_t *ctx = zctx_new();
-	int client_count = 4;
+	int client_count = 50;
 	//zthread_fork(ctx, test_channel, (void*)(&client_count));
 	test_channel((void*)(&client_count), ctx, NULL);
 
