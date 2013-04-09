@@ -1,5 +1,6 @@
 # Object files
 bin/*.o
+src/*.o
 
 # Libraries
 *.lib
