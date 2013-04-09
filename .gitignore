@@ -17,4 +17,10 @@ src/*.o
 *.out
 *.app
 *.swp
-
+src/.*.h.swo
+src/application
+src/dispatcher
+src/proxy
+src/publisher
+src/registrar
+src/tester

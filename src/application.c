@@ -34,15 +34,50 @@ static void join_tester(void* result_sock){
 	_send_string(result_sock, "foo", strlen("foo"));
 }
 
-int main (void)
+void  destroy(gpointer data){
+	free((void*) data);
+}
+int main (int argc, char *argv[])
 {	
-	const rnot* const rn = rnotify_init();	
-	rsubscribe(rn, "/localtmp/dump/1");
-	rsubscribe(rn, "/localtmp/dump/2");
-	rsubscribe(rn, "/localtmp/dump/3");
-	rsubscribe(rn, "/localtmp/dump/4");
+	srand(time(NULL));
+	if(argc < 2){
+		fprintf(stderr, "\n Only %d arguments were given", argc);
+		exit(EXIT_FAILURE);
+	}
+
+	const rnot* const rn = rnotify_init();
 	
-	//join_tester(); 
+	int subscription_count = atoi(argv[1]);
+	int i = 0;
+	char *base_dir = "/localtmp/dump/";
+
+	GHashTable* subscribed_files = g_hash_table_new_full(g_str_hash, g_str_equal, destroy, NULL);
+
+	for(i=0;i<subscription_count;i++){
+		char* existing_subscription = NULL;
+		while(existing_subscription == NULL){
+			char *file_name = malloc(sizeof(char) * (strlen(base_dir) + 2));
+
+			char * dir_num = malloc(10);
+			sprintf(dir_num, "%d",  (rand()%4) + 1);
+
+			strcat(strcpy(file_name, base_dir),dir_num);
+			file_name[sizeof(char) * (strlen(base_dir) + 1)] = 0;
+			existing_subscription = g_hash_table_lookup(subscribed_files, file_name);
+
+			if(existing_subscription == NULL){
+				rsubscribe(rn, file_name);
+				g_hash_table_insert(subscribed_files, file_name, file_name);
+				free(dir_num);
+				break;
+			}else{
+				free(file_name);
+				free(dir_num);
+			}
+				
+		}
+		
+	}
 
 	zthread_fork(rn->ctx, test_channel_listener, (void*)rn);
 	

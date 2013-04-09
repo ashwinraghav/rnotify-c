@@ -25,7 +25,7 @@ const rnot* rnotify_init()
 //call does not return until registration is complete
 void rsubscribe(const rnot* const rn, char* const file_path){
 
-	fprintf(stderr, "\nSubscribing");
+	fprintf(stderr, "\nSubscribing to %s", file_path);
 	int size;
 	char ** registration_response = _register(rn->subscriber, file_path, REGISTER_FILE_OBJECT_SANITY_CHECK, &size);
 	fprintf(stderr, "\n added watch with id %s", registration_response[1]);
