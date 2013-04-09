@@ -39,8 +39,8 @@
 #define SOCK_BIND 17273
 #define SOCK_CONNECT 276346
 
-#define REGISTRAR_IP_ADDR "localhost"
-#define FILE_HOST_IP_ADDR "localhost"
+#define REGISTRAR_IP_ADDR "10.166.2.17"
+#define FILE_HOST_IP_ADDR "10.166.2.17"
 
 #ifdef PRODUCTION
 	#define REGISTRATION_ADDR "tcp://" REGISTRAR_IP_ADDR ":" REGISTER_PORT
