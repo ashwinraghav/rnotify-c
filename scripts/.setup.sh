@@ -2,6 +2,8 @@
 sudo apt-get install gcc
 sudo apt-get install g++
 sudo apt-get install make
+sudo apt-get install build-essential
+sudo apt-get install htop
 
 #install gcc for micro instance
 sudo apt-get install pkg-config
