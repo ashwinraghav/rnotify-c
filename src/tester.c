@@ -37,7 +37,6 @@ static void test_channel(void* args, zctx_t* ctx, void *pipe){
 		_send_string(touch_start_socket, "message", strlen("message"));
 
 		fprintf(stderr, "coming");
-		sleep(5);
 		fr = fopen ("/localtmp/dump/1/foo", "rt");
 
 		//collect_reponses
@@ -47,18 +46,19 @@ static void test_channel(void* args, zctx_t* ctx, void *pipe){
 			int len;
 			char *response = _recv_buff(result_collect_socket, &len);
 			tot_time += (float)atoi(response);
-			//fprintf(stderr, "%s seconds", response);
+			fprintf(stderr, "\n%s seconds", response);
 			free(response);
 		}
-		fprintf(stderr, "\n\n Total Average Time = %f", (tot_time/(*client_count)));
-		fgets(line, 80, fr);
-		fclose(fr);  	
+		fprintf(stderr, "\n\n ***********Total Average Time = %f************", (tot_time/(*client_count)));
+		//getchar();
+		//fgets(line, 80, fr);
+		//fclose(fr);  	
 	}	
 }
 
 int main (){
 	zctx_t *ctx = zctx_new();
-	int client_count = 50;
+	int client_count = 8;
 	//zthread_fork(ctx, test_channel, (void*)(&client_count));
 	test_channel((void*)(&client_count), ctx, NULL);
 
