@@ -59,7 +59,7 @@ sudo mkdir /localtmp/
 sudo mkdir /localtmp/dump
 sudo chmod -R 777 /localtmp/
 cd /localtmp/dump
-cp ~/rnotify-c/scripts/create.sh ~/rnotify-c/scripts/modify.sh /localtmp/dump/
+cp ~/rnotify-c/scripts/create.sh ~/rnotify-c/scripts/modify.sh ~/rnotify-c/scripts/modify_meta.sh /localtmp/dump/
 bash create.sh
 cd ~
 

@@ -55,7 +55,7 @@ int main (int argc, char *argv[])
 
 	for(i=0;i<subscription_count;i++){
 		char* existing_subscription = NULL;
-		while(existing_subscription == NULL){
+		while(true){
 			char *file_name = malloc(sizeof(char) * (strlen(base_dir) + 2));
 
 			char * dir_num = malloc(10);
