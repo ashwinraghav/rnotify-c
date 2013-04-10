@@ -276,14 +276,14 @@ static void print_error (int error)
 static int scan_and_bind_socket(zctx_t* const ctx, void** sock, int type, const char* const address)
 {
 	*sock = zsocket_new (ctx, type);
-	zsocket_set_hwm(*sock, 100000);
+	//zsocket_set_hwm(*sock, 100000);
 	return zsocket_bind(*sock, address);
 }
 
 static void* create_socket(zctx_t* const ctx, int type, int mode, const char* const address)
 {
 	void* sock = zsocket_new (ctx, type);
-	zsocket_set_hwm(sock, 100000);
+	//zsocket_set_hwm(sock, 100000);
 	if(mode == SOCK_BIND) 	
 		zsocket_bind(sock, address);
 	else if (mode == SOCK_CONNECT)
