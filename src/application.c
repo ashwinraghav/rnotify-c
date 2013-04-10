@@ -27,6 +27,8 @@ static void test_channel_listener(void* args, zctx_t* ctx, void *pipe){
 		rnot* rn = (rnot*)(args);
 		int len;
 		char *content = _recv_buff(rn->tester, &len);
+		free(content);
+		fprintf(stderr, "\nreceived start");
 		rn->start_time = s_clock();
 	}
 }

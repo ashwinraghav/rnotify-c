@@ -36,20 +36,34 @@ static void test_channel(void* args, zctx_t* ctx, void *pipe){
 		getchar();
 		_send_string(touch_start_socket, "message", strlen("message"));
 
+		sleep(3);
 		fprintf(stderr, "coming");
 		fr = fopen ("/localtmp/dump/1/foo", "rt");
 
-		//collect_reponses
-		int i=0;
+
+		zmq_pollitem_t items [1];
+		/* First item refers to ØMQ socket 'socket' */
+		items[0].socket = result_collect_socket;
+		items[0].events = ZMQ_POLLIN;
+
+
+
+		int count = 0;
 		float tot_time = 0;
-		for(i = 0; i < *client_count; i++){
-			int len;
-			char *response = _recv_buff(result_collect_socket, &len);
-			tot_time += (float)atoi(response);
-			fprintf(stderr, "\n%s seconds", response);
-			free(response);
+		while(count<*client_count){	
+			zmq_poll(items, 1, 10000);
+			if(items[0].revents && ZMQ_POLLIN){
+				int len;
+				char *response = _recv_buff(result_collect_socket, &len);
+				tot_time += ((float)atoi(response)-5000);
+				fprintf(stderr, "\n%s milliseconds", response);
+				free(response);
+				count++;
+			}else{
+				break;
+			}
 		}
-		fprintf(stderr, "\n\n ***********Total Average Time = %f************", (tot_time/(*client_count)));
+		fprintf(stderr, "\n\n ***********Total Average Time = %f************", (tot_time/(count)));
 		//getchar();
 		//fgets(line, 80, fr);
 		//fclose(fr);  	
@@ -58,7 +72,7 @@ static void test_channel(void* args, zctx_t* ctx, void *pipe){
 
 int main (){
 	zctx_t *ctx = zctx_new();
-	int client_count = 8;
+	int client_count = 10;
 	//zthread_fork(ctx, test_channel, (void*)(&client_count));
 	test_channel((void*)(&client_count), ctx, NULL);
 
