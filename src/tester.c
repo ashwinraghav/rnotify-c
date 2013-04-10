@@ -32,7 +32,7 @@ static void test_channel(void* args, zctx_t* ctx, void *pipe){
 	//wait_for_joiners(result_collect_socket, client_count);
 	int a;
 	while(true){
-		printf("Press Enter to start");
+		fprintf(stderr, "\nPress Enter to start");
 		getchar();
 		_send_string(touch_start_socket, "message", strlen("message"));
 
@@ -50,13 +50,14 @@ static void test_channel(void* args, zctx_t* ctx, void *pipe){
 
 		int count = 0;
 		float tot_time = 0;
-		while(count<*client_count){	
+		while(true){	
 			zmq_poll(items, 1, 10000);
 			if(items[0].revents && ZMQ_POLLIN){
 				int len;
 				char *response = _recv_buff(result_collect_socket, &len);
-				tot_time += ((float)atoi(response)-5000);
-				fprintf(stderr, "\n%s milliseconds", response);
+				float cur_time = ((float)atoi(response)-3000);
+				tot_time += cur_time;
+				fprintf(stderr, "\n%f milliseconds", cur_time);
 				free(response);
 				count++;
 			}else{
