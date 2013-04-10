@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 #define WORKER_SOCKET "inproc://#1"
-#define THREAD_COUNT 1
+#define THREAD_COUNT 10
 
 #ifdef PRODUCTION
 	#define RECEIVE_ADDR "tcp://" FILE_HOST_IP_ADDR ":"  PROXY_FLUSH_PORT
@@ -22,6 +22,7 @@
 typedef struct publisher_list_struct{
 	hash_ring_t *publisher_ring;
 	GHashTable *publisher_socks;
+	GHashTable *publisher_socks_locks;
 }publishers_info;
 
 void parse_notifications(char *buff, ssize_t len, void* dispatch_socket);
@@ -30,6 +31,8 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe);
 void create_parser_threads(int nthreads, zctx_t *ctx, publishers_info *publisher_ring);
 static void publisher_updater(void *args, zctx_t *ctx, void *pipe);
 
+GRWLock lock;
+
 int main (int argc, char *argv [])
 {
         zctx_t *ctx = zctx_new ();
@@ -37,6 +40,7 @@ int main (int argc, char *argv [])
 
 	pub_interface->publisher_ring = hash_ring_create(REPLICATION_FACTOR, HASH_FUNCTION_SHA1);
 	pub_interface->publisher_socks = g_hash_table_new(g_str_hash, g_str_equal);
+	pub_interface->publisher_socks_locks = g_hash_table_new(g_str_hash, g_str_equal);
 
 	//self_register(ctx, REGISTER_DISPATCHER_SANITY_CHECK, "");
 
@@ -81,17 +85,26 @@ static void publisher_updater(void *args, zctx_t *ctx, void *pipe){
 	{
 		int size;
 		char *publisher_addr = _recv_buff(publisher_updater_socket, &size);
+		char *publisher_addr_dup  = to_c_string(publisher_addr, strlen(publisher_addr), strlen(publisher_addr)+1);
 
 		hash_ring_add_node(pub_interface->publisher_ring, (uint8_t*)publisher_addr, strlen(publisher_addr));
 		void *dispatch_socket = create_socket(ctx, ZMQ_PUB, SOCK_CONNECT, publisher_addr);
+		g_rw_lock_writer_lock (&lock);
+
 		g_hash_table_insert(pub_interface->publisher_socks, publisher_addr, dispatch_socket);
 
+		GMutex m;
+		g_mutex_init (&m);
+		g_hash_table_insert(pub_interface->publisher_socks_locks, publisher_addr_dup, &m);
+
+		g_rw_lock_writer_unlock (&lock);
 		fprintf(stderr, "New Publisher was added at %s", publisher_addr);
 		//free(publisher_addr);	
 	}
 }
 
-static void* get_random_publisher(struct inotify_event *pevent, publishers_info *pub_interface)
+//returns sock. Must unlock after usage. Otherwise the sock cannot be reused
+static void* notify_random_publisher(struct inotify_event *pevent, publishers_info *pub_interface)
 {
 	char * instance_num = malloc(10);
 	sprintf(instance_num, "%d",  (rand()%REPLICATION_FACTOR) + 1);
@@ -99,14 +112,22 @@ static void* get_random_publisher(struct inotify_event *pevent, publishers_info 
 	char * publishable = to_c_string(pevent->name, pevent->len, (pevent->len + strlen(instance_num) + 1));
 	strcat(publishable, instance_num);
 
-	hash_ring_node_t *node = hash_ring_find_node(pub_interface->publisher_ring, (uint8_t*)publishable, strlen(publishable));
+	g_rw_lock_reader_lock (&lock);
 
+	hash_ring_node_t *node = hash_ring_find_node(pub_interface->publisher_ring, (uint8_t*)publishable, strlen(publishable));
 	char *publisher = to_c_string((char*)node->name, node->nameLen, node->nameLen + 1);
 	void* ret =  g_hash_table_lookup(pub_interface->publisher_socks, publisher);
-	
+	void* mutex =  g_hash_table_lookup(pub_interface->publisher_socks_locks, publisher);
+
+	g_rw_lock_reader_unlock (&lock);	
 	free(publisher);
 	free(publishable);
 	free(instance_num);
+
+	g_mutex_lock (mutex);
+	notify(ret, pevent);
+	g_mutex_unlock (mutex);
+	
 	return ret;
 
 }
@@ -118,7 +139,6 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 	{
 		int size;
 		char *buff = _recv_buff(work_receiver_socket, &size);
-
 		ssize_t i = 0;
 		srand(time(NULL));
 	
@@ -127,15 +147,7 @@ static void parser_thread(void *args, zctx_t* ctx, void *pipe){
 
 			if (pevent->len)
 			{
-				void *dispatch_socket = get_random_publisher(pevent, pub_interface);
-				//hash_ring_print(pub_interface->publisher_ring);
-				//get_random_publisher(pevent, pub_interface);
-				if(dispatch_socket == NULL){
-					fprintf(stderr, "\n it is null");
-					fprintf(stderr, "\n size of table %d", g_hash_table_size(pub_interface->publisher_socks));
-				}	
-
-				notify(dispatch_socket, pevent);
+				notify_random_publisher(pevent, pub_interface);
 
 			}
 			//print_notifications(pevent);
