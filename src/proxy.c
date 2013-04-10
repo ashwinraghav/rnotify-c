@@ -38,6 +38,10 @@ int main ()
         int fd, wd;
 	zctx_t *ctx = zctx_new ();
 	assert(ctx);
+	
+	int io_threads = 15;
+	zctx_set_iothreads (ctx,  io_threads);
+	
 	void *publisher = create_socket(ctx, ZMQ_PUSH, SOCK_BIND, FLUSH_ADDR);
 	CHECK(fd = inotify_init()); 
 	zthread_fork(ctx, subscription_receiver, (void*)(&fd));
