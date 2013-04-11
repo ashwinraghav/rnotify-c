@@ -42,8 +42,8 @@ int main (void)
 
 	free(registration_response);
 
-	void *listener = zthread_fork (ctx, listener_thread, NULL);
-	zmq_proxy (subscriber, publisher, listener);
+	//void *listener = zthread_fork (ctx, listener_thread, NULL);
+	zmq_proxy (subscriber, publisher, NULL);
 	zctx_destroy (&ctx);
 	return 0;
 }
