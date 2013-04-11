@@ -37,7 +37,7 @@ static GHashTable * get_publishers_table(char * file_name, hash_ring_t* publishe
 	int i=0;
 	GHashTable* publishers_table = g_hash_table_new_full(g_str_hash, g_str_equal, destroy, destroy);
 
-	for(i = 0;i < REPLICATION_FACTOR;i++){
+	for(i = 1;i <= REPLICATION_FACTOR;i++){
 		char* instance_num = malloc(10);
 		sprintf(instance_num, "%d",  (i));
 
